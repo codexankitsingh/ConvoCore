@@ -1,0 +1,114 @@
+# ─────────────────────────────────────────────────────────────
+# docker-compose.yml — Main orchestration (Development)
+# ─────────────────────────────────────────────────────────────
+name: chat-app
+
+services:
+  # ─────────────────────────────────────────
+  # AdonisJS Application
+  # ─────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      target: development # Use dev stage (hot reload)
+    container_name: chat_app
+    restart: unless-stopped
+    ports:
+      - "3333:3333" # AdonisJS API
+    volumes:
+      - .:/app # Mount source for hot reload
+      - /app/node_modules # Prevent host node_modules override
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env # Load environment variables
+    depends_on:
+      postgres:
+        condition: service_healthy # Wait for DB to be ready
+      redis:
+        condition: service_healthy # Wait for Redis to be ready
+    networks:
+      - chat_network
+
+  # ─────────────────────────────────────────
+  # PostgreSQL Database
+  # ─────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: chat_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432" # Expose for pgAdmin & local tools
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persistent storage
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - chat_network
+
+  # ─────────────────────────────────────────
+  # Redis (Token Store + Pub/Sub)
+  # ─────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: chat_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data # Persistent storage
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chat_network
+
+  # ─────────────────────────────────────────
+  # pgAdmin (Database GUI — Dev only)
+  # ─────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: chat_pgadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80" # Access at http://localhost:8080
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - chat_network
+
+# ─────────────────────────────────────────
+# Named Volumes (persistent data)
+# ─────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# ─────────────────────────────────────────
+# Docker Network (isolated)
+# ─────────────────────────────────────────
+networks:
+  chat_network:
+    driver: bridge

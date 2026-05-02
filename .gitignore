@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+build/
+dist/
+
+# Environment files (NEVER commit real .env)
+.env
+.env.test
+.env.local
+
+# Logs
+*.log
+logs/
+tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Test coverage
+coverage/
