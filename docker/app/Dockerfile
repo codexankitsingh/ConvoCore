@@ -1,46 +1,41 @@
 # ─────────────────────────────────────────────
-# STAGE 1: BASE — shared base image
+# STAGE 1: BASE
 # ─────────────────────────────────────────────
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
-# Install system dependencies needed by AdonisJS & bcrypt
+# System deps needed for native modules (bcrypt, pg)
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    curl
+    curl \
+    wget
 
-# Set working directory inside container
 WORKDIR /app
 
 # ─────────────────────────────────────────────
-# STAGE 2: DEVELOPMENT — hot reload enabled
+# STAGE 2: DEVELOPMENT (hot reload)
 # ─────────────────────────────────────────────
 FROM base AS development
 
-# Set Node environment
 ENV NODE_ENV=development
 
-# Install nodemon globally for hot reload
-RUN npm install -g nodemon
-
-# Copy package files first (layer caching optimization)
+# Copy package files first (Docker layer cache optimization)
 COPY package*.json ./
 
-# Install ALL dependencies (including devDependencies)
+# Install ALL dependencies
 RUN npm install
 
-# Copy rest of source code
+# Copy source code
 COPY . .
 
-# Expose AdonisJS default port
 EXPOSE 3333
 
-# Start with hot reload
-CMD ["node", "ace", "serve", "--watch"]
+# HMR dev server
+CMD ["node", "ace", "serve", "--hmr"]
 
 # ─────────────────────────────────────────────
-# STAGE 3: PRODUCTION — optimized & minimal
+# STAGE 3: PRODUCTION
 # ─────────────────────────────────────────────
 FROM base AS production
 
@@ -48,14 +43,12 @@ ENV NODE_ENV=production
 
 COPY package*.json ./
 
-# Install production dependencies only
 RUN npm ci --only=production
 
 COPY . .
 
-# Build TypeScript
 RUN npm run build
 
 EXPOSE 3333
 
-CMD ["node", "build/bin/server.js"]
+CMD ["node", "bin/server.js"]

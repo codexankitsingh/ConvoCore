@@ -1,27 +1,26 @@
-# Dependencies
-node_modules/
+# Dependencies and AdonisJS build
+node_modules
+build
+tmp/*
+!tmp/.gitkeep
 
-# Build output
-build/
-dist/
-
-# Environment files (NEVER commit real .env)
+# Secrets
 .env
-.env.test
 .env.local
+.env.production.local
+.env.development.local
 
-# Logs
-*.log
-logs/
-tmp/
+# Frontend assets compiled code
+public/assets
 
-# OS files
+# Build tools specific
+npm-debug.log
+yarn-error.log
+
+# Editors specific
+.fleet
+.idea
+.vscode
+
+# Platform specific
 .DS_Store
-Thumbs.db
-
-# IDE
-.vscode/settings.json
-.idea/
-
-# Test coverage
-coverage/
