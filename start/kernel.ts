@@ -1,12 +1,3 @@
-/*
-|--------------------------------------------------------------------------
-| HTTP Kernel
-|--------------------------------------------------------------------------
-|
-| Registers middleware for the application.
-| We keep this lean for a pure REST API — no session/shield needed.
-|
-*/
 import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
 
@@ -19,7 +10,7 @@ server.errorHandler(() => import('#exceptions/handler'))
 
 /*
 |--------------------------------------------------------------------------
-| Server Middleware (runs on ALL requests)
+| Server Middleware — runs on ALL requests
 |--------------------------------------------------------------------------
 */
 server.use([
@@ -30,7 +21,7 @@ server.use([
 
 /*
 |--------------------------------------------------------------------------
-| Router Middleware (runs on matched routes only)
+| Router Middleware — runs on matched routes only
 |--------------------------------------------------------------------------
 */
 router.use([
@@ -40,14 +31,9 @@ router.use([
 
 /*
 |--------------------------------------------------------------------------
-| Named Middleware
-| Applied selectively on specific routes/groups
+| Named Middleware — applied selectively on routes
 |--------------------------------------------------------------------------
 */
 export const middleware = router.named({
-  // Enforces authentication — returns 401 if no valid token
   auth: () => import('#middleware/auth_middleware'),
-
-  // Phase 3: Verify user is a conversation participant
-  // conversationAccess: () => import('#middleware/conversation_access_middleware'),
 })

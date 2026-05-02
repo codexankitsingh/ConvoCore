@@ -1,18 +1,9 @@
-/*
-|--------------------------------------------------------------------------
-| Routes
-|--------------------------------------------------------------------------
-|
-| All API routes versioned under /api/v1
-| Routes are added phase by phase as modules are built.
-|
-*/
 import router from '@adonisjs/core/services/router'
+import { middleware } from '#start/kernel'
 
 /*
 |--------------------------------------------------------------------------
 | Health Check
-| Used by Docker healthcheck + monitoring tools
 |--------------------------------------------------------------------------
 */
 router.get('/health', async ({ response }) => {
@@ -32,12 +23,59 @@ router.get('/health', async ({ response }) => {
 */
 router
   .group(() => {
-    // ── Phase 2: Auth ──────────────────────────────────────────────────
-    // router.group(() => { ... }).prefix('/auth')
-    // ── Phase 3: Conversations ─────────────────────────────────────────
-    // router.group(() => { ... }).prefix('/conversations')
-    // ── Phase 4: Messages ──────────────────────────────────────────────
-    // ── Phase 5: Real-time ─────────────────────────────────────────────
-    // ── Phase 6: Reactions ─────────────────────────────────────────────
+    /*
+  |──────────────────────────────────────────────────────────────────────
+  | Auth Routes — /api/v1/auth/*
+  |──────────────────────────────────────────────────────────────────────
+  */
+    router
+      .group(() => {
+        // Public routes (no auth required)
+        router.post('/register', async (ctx) => {
+          const { default: AuthController } = await import('#controllers/auth_controller')
+          const authService = await ctx.containerResolver.make('IAuthService')
+          return new AuthController(authService).register(ctx)
+        })
+
+        router.post('/login', async (ctx) => {
+          const { default: AuthController } = await import('#controllers/auth_controller')
+          const authService = await ctx.containerResolver.make('IAuthService')
+          return new AuthController(authService).login(ctx)
+        })
+
+        router.post('/refresh', async (ctx) => {
+          const { default: AuthController } = await import('#controllers/auth_controller')
+          const authService = await ctx.containerResolver.make('IAuthService')
+          return new AuthController(authService).refresh(ctx)
+        })
+
+        router.post('/guest', async (ctx) => {
+          const { default: AuthController } = await import('#controllers/auth_controller')
+          const authService = await ctx.containerResolver.make('IAuthService')
+          return new AuthController(authService).guest(ctx)
+        })
+
+        // Protected routes (auth required)
+        router
+          .post('/logout', async (ctx) => {
+            const { default: AuthController } = await import('#controllers/auth_controller')
+            const authService = await ctx.containerResolver.make('IAuthService')
+            return new AuthController(authService).logout(ctx)
+          })
+          .use(middleware.auth())
+
+        router
+          .get('/me', async (ctx) => {
+            const { default: AuthController } = await import('#controllers/auth_controller')
+            const authService = await ctx.containerResolver.make('IAuthService')
+            return new AuthController(authService).me(ctx)
+          })
+          .use(middleware.auth())
+      })
+      .prefix('/auth')
+
+    // ── Phase 3: Conversations (coming soon) ──────────────────────────
+    // ── Phase 4: Messages (coming soon) ───────────────────────────────
+    // ── Phase 6: Reactions (coming soon) ──────────────────────────────
   })
   .prefix('/api/v1')

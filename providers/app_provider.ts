@@ -2,30 +2,35 @@ import type { ApplicationService } from '@adonisjs/core/types'
 
 /*
 |--------------------------------------------------------------------------
-| App Provider
+| App Provider — IoC Container Bindings
 |--------------------------------------------------------------------------
 |
-| Registers application-specific bindings into the IoC container.
-| Following Dependency Inversion Principle — controllers and services
-| depend on interfaces, not concrete implementations.
+| Binds interfaces to concrete implementations.
+| This is where Dependency Inversion is wired up.
 |
-| Bindings are added here phase by phase as we build each module.
+| Controllers/Services declare what they NEED (interface).
+| This provider decides WHAT they get (implementation).
 |
 */
 export default class AppProvider {
   constructor(protected app: ApplicationService) {}
 
-  /*
-  |--------------------------------------------------------------------------
-  | Register
-  | Bind interfaces → concrete implementations in IoC container
-  |--------------------------------------------------------------------------
-  */
   register() {
-    // Phase 2: Auth Service binding
-    // Phase 3: Conversation Service binding
-    // Phase 4: Message Service binding
-    // Phase 5: Realtime Service binding
+    // ── Auth Module ──────────────────────────────────────────────────
+    this.app.container.bind('IUserRepository', async () => {
+      const { default: UserRepository } = await import('#repositories/user_repository')
+      return new UserRepository()
+    })
+
+    this.app.container.bind('IAuthService', async () => {
+      const { default: AuthService } = await import('#services/auth_service')
+      const userRepository = await this.app.container.make('IUserRepository')
+      return new AuthService(userRepository)
+    })
+
+    // ── Phase 3: Conversation Module (coming soon) ───────────────────
+    // ── Phase 4: Message Module (coming soon) ────────────────────────
+    // ── Phase 5: Realtime Module (coming soon) ───────────────────────
   }
 
   async boot() {}

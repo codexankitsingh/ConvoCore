@@ -13,7 +13,7 @@ export class AuthAccessTokenSchema extends BaseModel {
   @column()
   declare abilities: string
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime | null
+  declare createdAt: DateTime
   @column.dateTime()
   declare expiresAt: DateTime | null
   @column()
@@ -25,26 +25,28 @@ export class AuthAccessTokenSchema extends BaseModel {
   @column()
   declare name: string | null
   @column()
-  declare tokenableId: number
+  declare tokenableId: string
   @column()
   declare type: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
+  declare updatedAt: DateTime
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'fullName', 'id', 'password', 'updatedAt'] as const
+  static $columns = ['createdAt', 'email', 'id', 'isGuest', 'name', 'password', 'updatedAt'] as const
   $columns = UserSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
-  declare email: string
-  @column()
-  declare fullName: string | null
+  declare email: string | null
   @column({ isPrimary: true })
-  declare id: number
+  declare id: string
+  @column()
+  declare isGuest: boolean
+  @column()
+  declare name: string
   @column({ serializeAs: null })
-  declare password: string
+  declare password: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
+  declare updatedAt: DateTime
 }
