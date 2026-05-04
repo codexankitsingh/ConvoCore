@@ -24,13 +24,13 @@ router.get('/health', async ({ response }) => {
 router
   .group(() => {
     /*
-  |──────────────────────────────────────────────────────────────────────
+  |────────────────────────────────────────────────────────────────────
   | Auth Routes — /api/v1/auth/*
-  |──────────────────────────────────────────────────────────────────────
+  |────────────────────────────────────────────────────────────────────
   */
     router
       .group(() => {
-        // Public routes (no auth required)
+        // Public
         router.post('/register', async (ctx) => {
           const { default: AuthController } = await import('#controllers/auth_controller')
           const authService = await ctx.containerResolver.make('IAuthService')
@@ -55,7 +55,7 @@ router
           return new AuthController(authService).guest(ctx)
         })
 
-        // Protected routes (auth required)
+        // Protected
         router
           .post('/logout', async (ctx) => {
             const { default: AuthController } = await import('#controllers/auth_controller')
@@ -74,8 +74,73 @@ router
       })
       .prefix('/auth')
 
-    // ── Phase 3: Conversations (coming soon) ──────────────────────────
+    /*
+  |────────────────────────────────────────────────────────────────────
+  | Conversation Routes — /api/v1/conversations/*
+  |────────────────────────────────────────────────────────────────────
+  */
+    router
+      .group(() => {
+        // Create conversation
+        router.post('/', async (ctx) => {
+          const { default: ConversationController } =
+            await import('#controllers/conversation_controller')
+          const conversationService = await ctx.containerResolver.make('IConversationService')
+          return new ConversationController(conversationService).create(ctx)
+        })
+
+        // List my conversations
+        router.get('/', async (ctx) => {
+          const { default: ConversationController } =
+            await import('#controllers/conversation_controller')
+          const conversationService = await ctx.containerResolver.make('IConversationService')
+          return new ConversationController(conversationService).list(ctx)
+        })
+
+        // Get single conversation
+        router
+          .get('/:id', async (ctx) => {
+            const { default: ConversationController } =
+              await import('#controllers/conversation_controller')
+            const conversationService = await ctx.containerResolver.make('IConversationService')
+            return new ConversationController(conversationService).show(ctx)
+          })
+          .use(middleware.conversationAccess())
+
+        // Delete conversation
+        router
+          .delete('/:id', async (ctx) => {
+            const { default: ConversationController } =
+              await import('#controllers/conversation_controller')
+            const conversationService = await ctx.containerResolver.make('IConversationService')
+            return new ConversationController(conversationService).destroy(ctx)
+          })
+          .use(middleware.conversationAccess())
+
+        // Add participant
+        router
+          .post('/:id/participants', async (ctx) => {
+            const { default: ConversationController } =
+              await import('#controllers/conversation_controller')
+            const conversationService = await ctx.containerResolver.make('IConversationService')
+            return new ConversationController(conversationService).addParticipant(ctx)
+          })
+          .use(middleware.conversationAccess())
+
+        // Remove participant
+        router
+          .delete('/:id/participants/:userId', async (ctx) => {
+            const { default: ConversationController } =
+              await import('#controllers/conversation_controller')
+            const conversationService = await ctx.containerResolver.make('IConversationService')
+            return new ConversationController(conversationService).removeParticipant(ctx)
+          })
+          .use(middleware.conversationAccess())
+      })
+      .prefix('/conversations')
+      .use(middleware.auth())
+
     // ── Phase 4: Messages (coming soon) ───────────────────────────────
-    // ── Phase 6: Reactions (coming soon) ──────────────────────────────
+    // ── Phase 5: Real-time (coming soon) ──────────────────────────────
   })
   .prefix('/api/v1')

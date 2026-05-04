@@ -32,6 +32,44 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class ConversationParticipantSchema extends BaseModel {
+  static $columns = ['conversationId', 'createdAt', 'id', 'lastReadAt', 'role', 'updatedAt', 'userId'] as const
+  $columns = ConversationParticipantSchema.$columns
+  @column()
+  declare conversationId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare lastReadAt: DateTime | null
+  @column()
+  declare role: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: string
+}
+
+export class ConversationSchema extends BaseModel {
+  static $columns = ['avatarUrl', 'createdAt', 'createdBy', 'id', 'name', 'type', 'updatedAt'] as const
+  $columns = ConversationSchema.$columns
+  @column()
+  declare avatarUrl: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdBy: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare name: string | null
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class UserSchema extends BaseModel {
   static $columns = ['createdAt', 'email', 'id', 'isGuest', 'name', 'password', 'updatedAt'] as const
   $columns = UserSchema.$columns

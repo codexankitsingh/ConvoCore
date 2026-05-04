@@ -31,9 +31,13 @@ router.use([
 
 /*
 |--------------------------------------------------------------------------
-| Named Middleware — applied selectively on routes
+| Named Middleware
 |--------------------------------------------------------------------------
 */
 export const middleware = router.named({
+  // Validates JWT token → attaches ctx.authUser
   auth: () => import('#middleware/auth_middleware'),
+
+  // Verifies user is a participant in the conversation
+  conversationAccess: () => import('#middleware/conversation_access_middleware'),
 })
