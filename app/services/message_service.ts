@@ -1,5 +1,5 @@
-import { Exception } from '@adonisjs/core/exceptions'
 import { DateTime } from 'luxon'
+import { Exception } from '@adonisjs/core/exceptions'
 import type {
   IMessageService,
   SendMessageInput,
@@ -9,22 +9,19 @@ import type {
 } from './interfaces/i_message_service.js'
 import type { IMessageRepository } from '#repositories/interfaces/i_message_repository'
 import type { IConversationRepository } from '#repositories/interfaces/i_conversation_repository'
+import type RealtimeService from '#services/realtime_service'
 import type Message from '#models/message'
 
 /*
 |--------------------------------------------------------------------------
 | MessageService
 |--------------------------------------------------------------------------
-|
-| Handles all message business logic.
-| Single Responsibility: ONLY message concerns.
-| Depends on interfaces (Dependency Inversion).
-|
 */
 export default class MessageService implements IMessageService {
   constructor(
     private readonly messageRepository: IMessageRepository,
-    private readonly conversationRepository: IConversationRepository
+    private readonly conversationRepository: IConversationRepository,
+    private readonly realtimeService: RealtimeService
   ) {}
 
   /*
@@ -46,7 +43,7 @@ export default class MessageService implements IMessageService {
       })
     }
 
-    // Validate parent message exists if provided
+    // Validate parent message if provided
     if (data.parentId) {
       const parentMessage = await this.messageRepository.findById(data.parentId)
       if (!parentMessage) {
@@ -55,7 +52,6 @@ export default class MessageService implements IMessageService {
           code: 'E_MESSAGE_NOT_FOUND',
         })
       }
-      // Parent must be in same conversation
       if (parentMessage.conversationId !== data.conversationId) {
         throw new Exception('Parent message does not belong to this conversation', {
           status: 422,
@@ -73,10 +69,12 @@ export default class MessageService implements IMessageService {
       parentId: data.parentId ?? null,
     })
 
-    // Update conversation updated_at (bump to top of list)
-    await this.conversationRepository.findById(data.conversationId)
+    const result = this.buildResult(message)
 
-    return this.buildResult(message)
+    // 🔴 Broadcast real-time event to all conversation participants
+    this.realtimeService.broadcastNewMessage(data.conversationId, result)
+
+    return result
   }
 
   /*
@@ -89,7 +87,6 @@ export default class MessageService implements IMessageService {
     userId: string,
     options: ListMessagesOptions
   ): Promise<PaginatedMessageResult> {
-    // Verify user is a participant
     const isParticipant = await this.conversationRepository.isParticipant(conversationId, userId)
 
     if (!isParticipant) {
@@ -100,7 +97,7 @@ export default class MessageService implements IMessageService {
     }
 
     const page = options.page ?? 1
-    const limit = Math.min(options.limit ?? 50, 100) // max 100 per page
+    const limit = Math.min(options.limit ?? 50, 100)
 
     const result = await this.messageRepository.findByConversationId(conversationId, {
       page,
@@ -129,7 +126,6 @@ export default class MessageService implements IMessageService {
       })
     }
 
-    // Only sender can edit
     if (message.senderId !== userId) {
       throw new Exception('You can only edit your own messages', {
         status: 403,
@@ -137,15 +133,13 @@ export default class MessageService implements IMessageService {
       })
     }
 
-    // Cannot edit deleted messages
-    if (message.deletedAt !== null) {
+    if (message.deletedAt instanceof DateTime) {
       throw new Exception('Cannot edit a deleted message', {
         status: 422,
         code: 'E_MESSAGE_DELETED',
       })
     }
 
-    // Cannot edit system messages
     if (message.type === 'system') {
       throw new Exception('Cannot edit system messages', {
         status: 422,
@@ -155,12 +149,17 @@ export default class MessageService implements IMessageService {
 
     const updated = await this.messageRepository.update(messageId, content.trim())
 
-    return this.buildResult(updated)
+    const result = this.buildResult(updated)
+
+    // 🔴 Broadcast edit event
+    this.realtimeService.broadcastEditedMessage(message.conversationId, result)
+
+    return result
   }
 
   /*
   |--------------------------------------------------------------------------
-  | Delete Message (Soft Delete)
+  | Delete Message
   |--------------------------------------------------------------------------
   */
   async delete(messageId: string, userId: string): Promise<void> {
@@ -173,7 +172,6 @@ export default class MessageService implements IMessageService {
       })
     }
 
-    // Only sender can delete their own message
     if (message.senderId !== userId) {
       throw new Exception('You can only delete your own messages', {
         status: 403,
@@ -181,8 +179,7 @@ export default class MessageService implements IMessageService {
       })
     }
 
-    // Already deleted
-    if (message.deletedAt !== null) {
+    if (message.deletedAt instanceof DateTime) {
       throw new Exception('Message is already deleted', {
         status: 422,
         code: 'E_MESSAGE_ALREADY_DELETED',
@@ -190,6 +187,9 @@ export default class MessageService implements IMessageService {
     }
 
     await this.messageRepository.softDelete(messageId)
+
+    // 🔴 Broadcast delete event
+    this.realtimeService.broadcastDeletedMessage(message.conversationId, messageId)
   }
 
   /*
@@ -216,17 +216,15 @@ export default class MessageService implements IMessageService {
   |--------------------------------------------------------------------------
   */
   private buildResult(message: Message): MessageResult {
-    // Correctly check if deletedAt is a DateTime instance (not null)
     const isDeleted = message.deletedAt instanceof DateTime
 
     return {
       id: message.id,
       conversationId: message.conversationId,
       type: message.type,
-      // Hide content of soft-deleted messages
       content: isDeleted ? 'This message was deleted' : message.content,
       isEdited: message.isEdited,
-      isDeleted: isDeleted,
+      isDeleted,
       parentId: message.parentId,
       sender: message.sender
         ? {

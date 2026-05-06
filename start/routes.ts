@@ -1,5 +1,19 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
+import transmit from '@adonisjs/transmit/services/main'
+
+/*
+|--------------------------------------------------------------------------
+| Register Transmit SSE Routes
+|--------------------------------------------------------------------------
+|
+| Registers /__transmit/events and /__transmit/subscribe routes.
+| Protected by auth middleware so only authenticated users can connect.
+|
+*/
+transmit.registerRoutes((route) => {
+  route.use(middleware.auth())
+})
 
 /*
 |--------------------------------------------------------------------------
@@ -30,7 +44,6 @@ router
   */
     router
       .group(() => {
-        // Public
         router.post('/register', async (ctx) => {
           const { default: AuthController } = await import('#controllers/auth_controller')
           const authService = await ctx.containerResolver.make('IAuthService')
@@ -55,7 +68,6 @@ router
           return new AuthController(authService).guest(ctx)
         })
 
-        // Protected
         router
           .post('/logout', async (ctx) => {
             const { default: AuthController } = await import('#controllers/auth_controller')
@@ -73,6 +85,21 @@ router
           .use(middleware.auth())
       })
       .prefix('/auth')
+
+    /*
+  |────────────────────────────────────────────────────────────────────
+  | Realtime Routes — /api/v1/realtime/*
+  |────────────────────────────────────────────────────────────────────
+  */
+    router
+      .group(() => {
+        router.get('/info', async (ctx) => {
+          const { default: RealtimeController } = await import('#controllers/realtime_controller')
+          return new RealtimeController().info(ctx)
+        })
+      })
+      .prefix('/realtime')
+      .use(middleware.auth())
 
     /*
   |────────────────────────────────────────────────────────────────────
@@ -137,12 +164,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        /*
-    |──────────────────────────────────────────────────────────────────
-    | Message Routes — /api/v1/conversations/:id/messages/*
-    |──────────────────────────────────────────────────────────────────
-    */
-
         // Send message
         router
           .post('/:id/messages', async (ctx) => {
@@ -190,7 +211,5 @@ router
       })
       .prefix('/conversations')
       .use(middleware.auth())
-
-    // ── Phase 5: Real-time (coming soon) ──────────────────────────────
   })
   .prefix('/api/v1')

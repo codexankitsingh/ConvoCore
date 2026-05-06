@@ -10,4 +10,5 @@ export const controllers = {
   Message: () => import('#controllers/message_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
   Profile: () => import('#controllers/profile_controller'),
+  Realtime: () => import('#controllers/realtime_controller'),
 }

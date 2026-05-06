@@ -24,12 +24,19 @@ export default class AppProvider {
       return new ConversationRepository()
     })
 
+    // ── Realtime Service ─────────────────────────────────────────────
+    this.app.container.bind('RealtimeService', async () => {
+      const { default: RealtimeService } = await import('#services/realtime_service')
+      return new RealtimeService()
+    })
+
     // ── Conversation Service ─────────────────────────────────────────
     this.app.container.bind('IConversationService', async () => {
       const { default: ConversationService } = await import('#services/conversation_service')
       const conversationRepository = await this.app.container.make('IConversationRepository')
       const userRepository = await this.app.container.make('IUserRepository')
-      return new ConversationService(conversationRepository, userRepository)
+      const realtimeService = await this.app.container.make('RealtimeService')
+      return new ConversationService(conversationRepository, userRepository, realtimeService)
     })
 
     // ── Message Repository ───────────────────────────────────────────
@@ -43,10 +50,9 @@ export default class AppProvider {
       const { default: MessageService } = await import('#services/message_service')
       const messageRepository = await this.app.container.make('IMessageRepository')
       const conversationRepository = await this.app.container.make('IConversationRepository')
-      return new MessageService(messageRepository, conversationRepository)
+      const realtimeService = await this.app.container.make('RealtimeService')
+      return new MessageService(messageRepository, conversationRepository, realtimeService)
     })
-
-    // ── Phase 5: Realtime Service (coming soon) ──────────────────────
   }
 
   async boot() {}

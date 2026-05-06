@@ -6,22 +6,19 @@ import type {
 } from './interfaces/i_conversation_service.js'
 import type { IConversationRepository } from '#repositories/interfaces/i_conversation_repository'
 import type { IUserRepository } from '#repositories/interfaces/i_user_repository'
+import type RealtimeService from '#services/realtime_service'
 import type Conversation from '#models/conversation'
 
 /*
 |--------------------------------------------------------------------------
 | ConversationService
 |--------------------------------------------------------------------------
-|
-| Handles all conversation business logic.
-| Single Responsibility: ONLY conversation concerns.
-| Depends on interfaces (Dependency Inversion).
-|
 */
 export default class ConversationService implements IConversationService {
   constructor(
     private readonly conversationRepository: IConversationRepository,
-    private readonly userRepository: IUserRepository
+    private readonly userRepository: IUserRepository,
+    private readonly realtimeService: RealtimeService
   ) {}
 
   /*
@@ -30,7 +27,6 @@ export default class ConversationService implements IConversationService {
   |--------------------------------------------------------------------------
   */
   async create(data: CreateConversationInput, creatorId: string): Promise<ConversationResult> {
-    // ── Direct Conversation ──────────────────────────────────────────
     if (data.type === 'direct') {
       if (data.participantIds.length !== 1) {
         throw new Exception('Direct conversation requires exactly 1 other participant', {
@@ -41,7 +37,6 @@ export default class ConversationService implements IConversationService {
 
       const otherUserId = data.participantIds[0]
 
-      // Prevent conversation with yourself
       if (otherUserId === creatorId) {
         throw new Exception('Cannot create a conversation with yourself', {
           status: 422,
@@ -49,7 +44,6 @@ export default class ConversationService implements IConversationService {
         })
       }
 
-      // Check other user exists
       const otherUser = await this.userRepository.findById(otherUserId)
       if (!otherUser) {
         throw new Exception('User not found', {
@@ -58,7 +52,6 @@ export default class ConversationService implements IConversationService {
         })
       }
 
-      // Return existing direct conversation if already exists
       const existing = await this.conversationRepository.findDirectConversation(
         creatorId,
         otherUserId
@@ -70,20 +63,25 @@ export default class ConversationService implements IConversationService {
         return this.buildResult(withParticipants!)
       }
 
-      // Create new direct conversation
       const conversation = await this.conversationRepository.create({
         type: 'direct',
         createdBy: creatorId,
       })
 
-      // Add both participants
       await this.conversationRepository.addParticipant(conversation.id, creatorId, 'admin')
       await this.conversationRepository.addParticipant(conversation.id, otherUserId, 'member')
 
       const withParticipants = await this.conversationRepository.findByIdWithParticipants(
         conversation.id
       )
-      return this.buildResult(withParticipants!)
+
+      const result = this.buildResult(withParticipants!)
+
+      // 🔴 Broadcast new conversation to both participants
+      this.realtimeService.broadcastNewConversation(creatorId, result)
+      this.realtimeService.broadcastNewConversation(otherUserId, result)
+
+      return result
     }
 
     // ── Group Conversation ───────────────────────────────────────────
@@ -101,7 +99,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Validate all participant IDs exist
     const allParticipantIds = [...new Set([creatorId, ...data.participantIds])]
 
     for (const userId of allParticipantIds) {
@@ -114,17 +111,14 @@ export default class ConversationService implements IConversationService {
       }
     }
 
-    // Create group conversation
     const conversation = await this.conversationRepository.create({
       type: 'group',
       name: data.name.trim(),
       createdBy: creatorId,
     })
 
-    // Add creator as admin
     await this.conversationRepository.addParticipant(conversation.id, creatorId, 'admin')
 
-    // Add all other participants as members
     for (const userId of data.participantIds) {
       if (userId !== creatorId) {
         await this.conversationRepository.addParticipant(conversation.id, userId, 'member')
@@ -134,7 +128,15 @@ export default class ConversationService implements IConversationService {
     const withParticipants = await this.conversationRepository.findByIdWithParticipants(
       conversation.id
     )
-    return this.buildResult(withParticipants!)
+
+    const result = this.buildResult(withParticipants!)
+
+    // 🔴 Broadcast new conversation to all participants
+    for (const userId of allParticipantIds) {
+      this.realtimeService.broadcastNewConversation(userId, result)
+    }
+
+    return result
   }
 
   /*
@@ -162,7 +164,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Verify user is a participant
     const isParticipant = await this.conversationRepository.isParticipant(conversationId, userId)
     if (!isParticipant) {
       throw new Exception('You are not a participant in this conversation', {
@@ -189,7 +190,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Only creator can delete
     if (conversation.createdBy !== userId) {
       throw new Exception('Only the conversation creator can delete it', {
         status: 403,
@@ -219,7 +219,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Only group conversations can add participants
     if (conversation.type === 'direct') {
       throw new Exception('Cannot add participants to a direct conversation', {
         status: 422,
@@ -227,7 +226,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Requester must be admin
     const requesterParticipant = await this.conversationRepository.getParticipant(
       conversationId,
       requesterId
@@ -240,7 +238,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Target user must exist
     const targetUser = await this.userRepository.findById(targetUserId)
     if (!targetUser) {
       throw new Exception('User not found', {
@@ -249,7 +246,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Check not already a participant
     const alreadyIn = await this.conversationRepository.isParticipant(conversationId, targetUserId)
     if (alreadyIn) {
       throw new Exception('User is already a participant', {
@@ -259,6 +255,13 @@ export default class ConversationService implements IConversationService {
     }
 
     await this.conversationRepository.addParticipant(conversationId, targetUserId, 'member')
+
+    // 🔴 Broadcast participant added
+    this.realtimeService.broadcastParticipantAdded(conversationId, {
+      userId: targetUserId,
+      name: targetUser.name,
+      role: 'member',
+    })
   }
 
   /*
@@ -280,7 +283,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Only group conversations
     if (conversation.type === 'direct') {
       throw new Exception('Cannot remove participants from a direct conversation', {
         status: 422,
@@ -288,7 +290,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Requester must be admin OR removing themselves
     const requesterParticipant = await this.conversationRepository.getParticipant(
       conversationId,
       requesterId
@@ -304,7 +305,6 @@ export default class ConversationService implements IConversationService {
       })
     }
 
-    // Target must be a participant
     const targetParticipant = await this.conversationRepository.getParticipant(
       conversationId,
       targetUserId
@@ -318,11 +318,14 @@ export default class ConversationService implements IConversationService {
     }
 
     await this.conversationRepository.removeParticipant(conversationId, targetUserId)
+
+    // 🔴 Broadcast participant removed
+    this.realtimeService.broadcastParticipantRemoved(conversationId, targetUserId)
   }
 
   /*
   |--------------------------------------------------------------------------
-  | Private: Build Consistent Response
+  | Private: Build Result
   |--------------------------------------------------------------------------
   */
   private buildResult(conversation: Conversation): ConversationResult {
