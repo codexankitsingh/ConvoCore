@@ -70,6 +70,31 @@ export class ConversationSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class MessageSchema extends BaseModel {
+  static $columns = ['content', 'conversationId', 'createdAt', 'deletedAt', 'id', 'isEdited', 'parentId', 'senderId', 'type', 'updatedAt'] as const
+  $columns = MessageSchema.$columns
+  @column()
+  declare content: string
+  @column()
+  declare conversationId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare isEdited: boolean
+  @column()
+  declare parentId: string | null
+  @column()
+  declare senderId: string
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class UserSchema extends BaseModel {
   static $columns = ['createdAt', 'email', 'id', 'isGuest', 'name', 'password', 'updatedAt'] as const
   $columns = UserSchema.$columns

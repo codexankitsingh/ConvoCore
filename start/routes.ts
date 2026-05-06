@@ -136,11 +136,61 @@ router
             return new ConversationController(conversationService).removeParticipant(ctx)
           })
           .use(middleware.conversationAccess())
+
+        /*
+    |──────────────────────────────────────────────────────────────────
+    | Message Routes — /api/v1/conversations/:id/messages/*
+    |──────────────────────────────────────────────────────────────────
+    */
+
+        // Send message
+        router
+          .post('/:id/messages', async (ctx) => {
+            const { default: MessageController } = await import('#controllers/message_controller')
+            const messageService = await ctx.containerResolver.make('IMessageService')
+            return new MessageController(messageService).send(ctx)
+          })
+          .use(middleware.conversationAccess())
+
+        // List messages
+        router
+          .get('/:id/messages', async (ctx) => {
+            const { default: MessageController } = await import('#controllers/message_controller')
+            const messageService = await ctx.containerResolver.make('IMessageService')
+            return new MessageController(messageService).list(ctx)
+          })
+          .use(middleware.conversationAccess())
+
+        // Edit message
+        router
+          .patch('/:id/messages/:messageId', async (ctx) => {
+            const { default: MessageController } = await import('#controllers/message_controller')
+            const messageService = await ctx.containerResolver.make('IMessageService')
+            return new MessageController(messageService).edit(ctx)
+          })
+          .use(middleware.conversationAccess())
+
+        // Delete message
+        router
+          .delete('/:id/messages/:messageId', async (ctx) => {
+            const { default: MessageController } = await import('#controllers/message_controller')
+            const messageService = await ctx.containerResolver.make('IMessageService')
+            return new MessageController(messageService).destroy(ctx)
+          })
+          .use(middleware.conversationAccess())
+
+        // Mark messages as read
+        router
+          .post('/:id/messages/:messageId/read', async (ctx) => {
+            const { default: MessageController } = await import('#controllers/message_controller')
+            const messageService = await ctx.containerResolver.make('IMessageService')
+            return new MessageController(messageService).markRead(ctx)
+          })
+          .use(middleware.conversationAccess())
       })
       .prefix('/conversations')
       .use(middleware.auth())
 
-    // ── Phase 4: Messages (coming soon) ───────────────────────────────
     // ── Phase 5: Real-time (coming soon) ──────────────────────────────
   })
   .prefix('/api/v1')

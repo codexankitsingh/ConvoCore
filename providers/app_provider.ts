@@ -1,10 +1,5 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 
-/*
-|--------------------------------------------------------------------------
-| App Provider — IoC Container Bindings
-|--------------------------------------------------------------------------
-*/
 export default class AppProvider {
   constructor(protected app: ApplicationService) {}
 
@@ -37,7 +32,20 @@ export default class AppProvider {
       return new ConversationService(conversationRepository, userRepository)
     })
 
-    // ── Phase 4: Message Service (coming soon) ───────────────────────
+    // ── Message Repository ───────────────────────────────────────────
+    this.app.container.bind('IMessageRepository', async () => {
+      const { default: MessageRepository } = await import('#repositories/message_repository')
+      return new MessageRepository()
+    })
+
+    // ── Message Service ──────────────────────────────────────────────
+    this.app.container.bind('IMessageService', async () => {
+      const { default: MessageService } = await import('#services/message_service')
+      const messageRepository = await this.app.container.make('IMessageRepository')
+      const conversationRepository = await this.app.container.make('IConversationRepository')
+      return new MessageService(messageRepository, conversationRepository)
+    })
+
     // ── Phase 5: Realtime Service (coming soon) ──────────────────────
   }
 
