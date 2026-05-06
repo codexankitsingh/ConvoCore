@@ -6,10 +6,6 @@ import transmit from '@adonisjs/transmit/services/main'
 |--------------------------------------------------------------------------
 | Register Transmit SSE Routes
 |--------------------------------------------------------------------------
-|
-| Registers /__transmit/events and /__transmit/subscribe routes.
-| Protected by auth middleware so only authenticated users can connect.
-|
 */
 transmit.registerRoutes((route) => {
   route.use(middleware.auth())
@@ -99,6 +95,48 @@ router
         })
       })
       .prefix('/realtime')
+      .use(middleware.auth())
+
+    /*
+  |────────────────────────────────────────────────────────────────────
+  | Presence Routes — /api/v1/presence/*
+  |────────────────────────────────────────────────────────────────────
+  */
+    router
+      .group(() => {
+        // Heartbeat — mark user online
+        router.post('/online', async (ctx) => {
+          const { default: PresenceController } = await import('#controllers/presence_controller')
+          const presenceService = await ctx.containerResolver.make('PresenceService')
+          const conversationRepository = await ctx.containerResolver.make('IConversationRepository')
+          return new PresenceController(presenceService, conversationRepository).online(ctx)
+        })
+
+        // Mark user offline
+        router.post('/offline', async (ctx) => {
+          const { default: PresenceController } = await import('#controllers/presence_controller')
+          const presenceService = await ctx.containerResolver.make('PresenceService')
+          const conversationRepository = await ctx.containerResolver.make('IConversationRepository')
+          return new PresenceController(presenceService, conversationRepository).offline(ctx)
+        })
+
+        // Typing indicator
+        router.post('/typing', async (ctx) => {
+          const { default: PresenceController } = await import('#controllers/presence_controller')
+          const presenceService = await ctx.containerResolver.make('PresenceService')
+          const conversationRepository = await ctx.containerResolver.make('IConversationRepository')
+          return new PresenceController(presenceService, conversationRepository).typing(ctx)
+        })
+
+        // Get presence for a conversation
+        router.get('/:conversationId', async (ctx) => {
+          const { default: PresenceController } = await import('#controllers/presence_controller')
+          const presenceService = await ctx.containerResolver.make('PresenceService')
+          const conversationRepository = await ctx.containerResolver.make('IConversationRepository')
+          return new PresenceController(presenceService, conversationRepository).show(ctx)
+        })
+      })
+      .prefix('/presence')
       .use(middleware.auth())
 
     /*

@@ -30,6 +30,13 @@ export default class AppProvider {
       return new RealtimeService()
     })
 
+    // ── Presence Service ─────────────────────────────────────────────
+    this.app.container.bind('PresenceService', async () => {
+      const { default: PresenceService } = await import('#services/presence_service')
+      const realtimeService = await this.app.container.make('RealtimeService')
+      return new PresenceService(realtimeService)
+    })
+
     // ── Conversation Service ─────────────────────────────────────────
     this.app.container.bind('IConversationService', async () => {
       const { default: ConversationService } = await import('#services/conversation_service')
