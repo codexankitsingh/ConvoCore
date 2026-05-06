@@ -12,4 +12,5 @@ export const controllers = {
   Presence: () => import('#controllers/presence_controller'),
   Profile: () => import('#controllers/profile_controller'),
   Realtime: () => import('#controllers/realtime_controller'),
+  Search: () => import('#controllers/search_controller'),
 }

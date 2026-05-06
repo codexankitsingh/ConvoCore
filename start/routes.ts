@@ -138,8 +138,40 @@ router
       })
       .prefix('/presence')
       .use(middleware.auth())
+    /*
+  |────────────────────────────────────────────────────────────────────
+  | Search Routes — /api/v1/search/*
+  |────────────────────────────────────────────────────────────────────
+  */
+    router
+      .group(() => {
+        // Search messages
+        router.get('/messages', async (ctx) => {
+          const { default: SearchController } = await import('#controllers/search_controller')
+          const searchService = await ctx.containerResolver.make('SearchService')
+          return new SearchController(searchService).messages(ctx)
+        })
+
+        // Search conversations
+        router.get('/conversations', async (ctx) => {
+          const { default: SearchController } = await import('#controllers/search_controller')
+          const searchService = await ctx.containerResolver.make('SearchService')
+          return new SearchController(searchService).conversations(ctx)
+        })
+
+        // Global search
+        router.get('/', async (ctx) => {
+          const { default: SearchController } = await import('#controllers/search_controller')
+          const searchService = await ctx.containerResolver.make('SearchService')
+          return new SearchController(searchService).global(ctx)
+        })
+      })
+      .prefix('/search')
+      .use(middleware.auth())
 
     /*
+  
+  
   |────────────────────────────────────────────────────────────────────
   | Conversation Routes — /api/v1/conversations/*
   |────────────────────────────────────────────────────────────────────
