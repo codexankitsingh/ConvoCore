@@ -2,10 +2,32 @@
 
 > Enterprise-grade, real-time multi-room chat API built with **AdonisJS 7**, **PostgreSQL**, **Redis**, and **SSE (Server-Sent Events)**.
 
+## ✨ Features
+- **Real-time Messaging**: Instant message delivery using Server-Sent Events (SSE).
+- **Group & Direct Conversations**: Support for 1-on-1 and multi-user group chats.
+- **Robust Authentication**: Custom JWT-based auth with access/refresh token rotation and guest sessions.
+- **Presence & Typing Indicators**: See who is online and currently typing in real-time.
+- **Read Receipts & Notifications**: Unread message tracking and global notification system.
+- **Full-Text Search**: High-performance message and conversation search using PostgreSQL `tsvector`.
+- **Media Uploads**: Secure image and file upload handling.
+- **Enterprise Security**: Rate limiting, CORS, CSP headers, and token blacklisting via Redis.
+
+## 🛠 Tech Stack
+- **Framework**: [AdonisJS v7](https://adonisjs.com/) (TypeScript)
+- **Database**: PostgreSQL 16 (via Lucid ORM)
+- **Caching & Rate Limiting**: Redis 7
+- **Real-time**: `@adonisjs/transmit` (SSE)
+- **Authentication**: Custom JWT (JSON Web Tokens) with scrypt hashing
+- **Validation**: VineJS
+- **Containerization**: Docker & Docker Compose
+- **Deployment**: Nginx, GitHub Actions (CI/CD)
+
 ---
 
 ## 📑 Table of Contents
 
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
 - [Prerequisites](#-prerequisites)
 - [Quick Start](#-quick-start)
 - [Complete API Guide](#-complete-api-guide)
@@ -18,6 +40,7 @@
   - [7. File Uploads](#7--file-uploads)
   - [8. Real-time Events (SSE)](#8--real-time-events-sse)
 - [Architecture](#-architecture)
+- [Package Structure & Libraries](#-package-structure--libraries)
 - [Environment Variables](#-environment-variables)
 - [Running Tests](#-running-tests)
 - [Production Deployment](#-production-deployment)
@@ -543,6 +566,31 @@ eventSource.onmessage = (event) => {
 - **Interface-based contracts** for all services and repositories
 - **JWT authentication** with Redis-backed token lifecycle
 - **Redis** for rate limiting, token blacklisting, and presence
+
+---
+
+## 📦 Package Structure & Libraries
+
+The project follows a standard AdonisJS domain-driven directory structure:
+
+```text
+app/
+├── controllers/    # HTTP layer: handles requests and returns responses
+├── exceptions/     # Custom error handling and global exception handler
+├── middleware/     # Request interceptors (Auth, Rate Limiting, Guards)
+├── models/         # Lucid ORM data models and relationships
+├── repositories/   # Data access layer (DB queries abstracting Lucid)
+├── services/       # Core business logic and use cases
+└── validators/     # VineJS schema validation rules
+```
+
+**Core Libraries Used:**
+- `@adonisjs/core`: Web framework foundation and IoC container.
+- `@adonisjs/lucid`: Powerful SQL ORM and query builder for PostgreSQL.
+- `@adonisjs/redis`: Redis client for caching, rate limiting, and pub/sub.
+- `@adonisjs/transmit`: Server-Sent Events (SSE) provider for real-time broadcasting.
+- `@vinejs/vine`: Fast, schema-based data validation.
+- `jsonwebtoken`: Standard library for creating and verifying JWTs.
 
 ---
 
