@@ -3,30 +3,25 @@ import server from '@adonisjs/core/services/server'
 
 /*
 |--------------------------------------------------------------------------
-| Global Error Handler
+| Server Error Handler
 |--------------------------------------------------------------------------
 */
 server.errorHandler(() => import('#exceptions/handler'))
 
 /*
 |--------------------------------------------------------------------------
-| Server Middleware — runs on ALL requests
+| Server Middleware
 |--------------------------------------------------------------------------
+| ORDER MATTERS:
+| 1. Body parser   → parse request body FIRST
+| 2. CORS          → handle cross-origin
+| 3. Security      → add security headers
 */
 server.use([
-  () => import('#middleware/force_json_response_middleware'),
   () => import('#middleware/container_bindings_middleware'),
-  () => import('@adonisjs/cors/cors_middleware'),
-])
-
-/*
-|--------------------------------------------------------------------------
-| Router Middleware — runs on matched routes only
-|--------------------------------------------------------------------------
-*/
-router.use([
   () => import('@adonisjs/core/bodyparser_middleware'),
-  () => import('@adonisjs/auth/initialize_auth_middleware'),
+  () => import('@adonisjs/cors/cors_middleware'),
+  () => import('#middleware/security_headers_middleware'),
 ])
 
 /*
@@ -35,9 +30,8 @@ router.use([
 |--------------------------------------------------------------------------
 */
 export const middleware = router.named({
-  // Validates JWT token → attaches ctx.authUser
   auth: () => import('#middleware/auth_middleware'),
-
-  // Verifies user is a participant in the conversation
-  conversationAccess: () => import('#middleware/conversation_access_middleware'),
+  conversationAccess: () =>
+    import('#middleware/conversation_access_middleware'),
+  rateLimit: () => import('#middleware/rate_limit_middleware'),
 })

@@ -8,5 +8,6 @@
 /// <reference path="../../config/drive.ts" />
 /// <reference path="../../config/hash.ts" />
 /// <reference path="../../config/logger.ts" />
+/// <reference path="../../config/rate_limit.ts" />
 /// <reference path="../../config/redis.ts" />
 /// <reference path="../../config/transmit.ts" />

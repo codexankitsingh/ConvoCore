@@ -1,6 +1,8 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import transmit from '@adonisjs/transmit/services/main'
+import RateLimitMiddleware from '#middleware/rate_limit_middleware'
+import { rateLimitConfig } from '#config/rate_limit'
 
 /*
 |--------------------------------------------------------------------------
@@ -34,35 +36,51 @@ router.get('/health', async ({ response }) => {
 router
   .group(() => {
     /*
-  |────────────────────────────────────────────────────────────────────
-  | Auth Routes — /api/v1/auth/*
-  |────────────────────────────────────────────────────────────────────
-  */
+    |──────────────────────────────────────────────────────────────────
+    | Auth Routes — /api/v1/auth/*
+    |──────────────────────────────────────────────────────────────────
+    */
     router
       .group(() => {
-        router.post('/register', async (ctx) => {
-          const { default: AuthController } = await import('#controllers/auth_controller')
-          const authService = await ctx.containerResolver.make('IAuthService')
-          return new AuthController(authService).register(ctx)
-        })
+        router
+          .post('/register', async (ctx) => {
+            const { default: AuthController } = await import('#controllers/auth_controller')
+            const authService = await ctx.containerResolver.make('IAuthService')
+            return new AuthController(authService).register(ctx)
+          })
+          .use(async (ctx, next) => {
+            return new RateLimitMiddleware().handle(ctx, next, rateLimitConfig.auth.register)
+          })
 
-        router.post('/login', async (ctx) => {
-          const { default: AuthController } = await import('#controllers/auth_controller')
-          const authService = await ctx.containerResolver.make('IAuthService')
-          return new AuthController(authService).login(ctx)
-        })
+        router
+          .post('/login', async (ctx) => {
+            const { default: AuthController } = await import('#controllers/auth_controller')
+            const authService = await ctx.containerResolver.make('IAuthService')
+            return new AuthController(authService).login(ctx)
+          })
+          .use(async (ctx, next) => {
+            return new RateLimitMiddleware().handle(ctx, next, rateLimitConfig.auth.login)
+          })
 
-        router.post('/refresh', async (ctx) => {
-          const { default: AuthController } = await import('#controllers/auth_controller')
-          const authService = await ctx.containerResolver.make('IAuthService')
-          return new AuthController(authService).refresh(ctx)
-        })
+        router
+          .post('/refresh', async (ctx) => {
+            const { default: AuthController } = await import('#controllers/auth_controller')
+            const authService = await ctx.containerResolver.make('IAuthService')
+            return new AuthController(authService).refresh(ctx)
+          })
+          .use(async (ctx, next) => {
+            return new RateLimitMiddleware().handle(ctx, next, rateLimitConfig.auth.refresh)
+          })
 
-        router.post('/guest', async (ctx) => {
-          const { default: AuthController } = await import('#controllers/auth_controller')
-          const authService = await ctx.containerResolver.make('IAuthService')
-          return new AuthController(authService).guest(ctx)
-        })
+        router
+          .post('/guest', async (ctx) => {
+            const { default: AuthController } = await import('#controllers/auth_controller')
+            const authService = await ctx.containerResolver.make('IAuthService')
+            return new AuthController(authService).guest(ctx)
+          })
+          .use(async (ctx, next) => {
+            return new RateLimitMiddleware().handle(ctx, next, rateLimitConfig.auth.guest)
+          })
 
         router
           .post('/logout', async (ctx) => {
@@ -83,10 +101,10 @@ router
       .prefix('/auth')
 
     /*
-  |────────────────────────────────────────────────────────────────────
-  | Realtime Routes — /api/v1/realtime/*
-  |────────────────────────────────────────────────────────────────────
-  */
+    |──────────────────────────────────────────────────────────────────
+    | Realtime Routes — /api/v1/realtime/*
+    |──────────────────────────────────────────────────────────────────
+    */
     router
       .group(() => {
         router.get('/info', async (ctx) => {
@@ -98,10 +116,10 @@ router
       .use(middleware.auth())
 
     /*
-  |────────────────────────────────────────────────────────────────────
-  | Presence Routes — /api/v1/presence/*
-  |────────────────────────────────────────────────────────────────────
-  */
+    |──────────────────────────────────────────────────────────────────
+    | Presence Routes — /api/v1/presence/*
+    |──────────────────────────────────────────────────────────────────
+    */
     router
       .group(() => {
         router.post('/online', async (ctx) => {
@@ -136,13 +154,12 @@ router
       .use(middleware.auth())
 
     /*
-  |────────────────────────────────────────────────────────────────────
-  | Notification Routes — /api/v1/notifications/*
-  |────────────────────────────────────────────────────────────────────
-  */
+    |──────────────────────────────────────────────────────────────────
+    | Notification Routes — /api/v1/notifications/*
+    |──────────────────────────────────────────────────────────────────
+    */
     router
       .group(() => {
-        // Get unread count — MUST be before /:id routes
         router.get('/unread-count', async (ctx) => {
           const { default: NotificationController } =
             await import('#controllers/notification_controller')
@@ -150,7 +167,6 @@ router
           return new NotificationController(notificationService).unreadCount(ctx)
         })
 
-        // Mark all as read — MUST be before /:id routes
         router.patch('/read-all', async (ctx) => {
           const { default: NotificationController } =
             await import('#controllers/notification_controller')
@@ -158,7 +174,6 @@ router
           return new NotificationController(notificationService).markAllRead(ctx)
         })
 
-        // List notifications
         router.get('/', async (ctx) => {
           const { default: NotificationController } =
             await import('#controllers/notification_controller')
@@ -166,7 +181,6 @@ router
           return new NotificationController(notificationService).index(ctx)
         })
 
-        // Mark single as read
         router.patch('/:id/read', async (ctx) => {
           const { default: NotificationController } =
             await import('#controllers/notification_controller')
@@ -174,7 +188,6 @@ router
           return new NotificationController(notificationService).markRead(ctx)
         })
 
-        // Delete notification
         router.delete('/:id', async (ctx) => {
           const { default: NotificationController } =
             await import('#controllers/notification_controller')
@@ -186,10 +199,10 @@ router
       .use(middleware.auth())
 
     /*
-  |────────────────────────────────────────────────────────────────────
-  | Search Routes — /api/v1/search/*
-  |────────────────────────────────────────────────────────────────────
-  */
+    |──────────────────────────────────────────────────────────────────
+    | Search Routes — /api/v1/search/*
+    |──────────────────────────────────────────────────────────────────
+    */
     router
       .group(() => {
         router.get('/messages', async (ctx) => {
@@ -214,23 +227,31 @@ router
       .use(middleware.auth())
 
     /*
-  |────────────────────────────────────────────────────────────────────
-  | Upload Routes — /api/v1/uploads/*
-  |────────────────────────────────────────────────────────────────────
-  */
+    |──────────────────────────────────────────────────────────────────
+    | Upload Routes — /api/v1/uploads/*
+    |──────────────────────────────────────────────────────────────────
+    */
     router
       .group(() => {
-        router.post('/image', async (ctx) => {
-          const { default: UploadController } = await import('#controllers/upload_controller')
-          const uploadService = await ctx.containerResolver.make('UploadService')
-          return new UploadController(uploadService).image(ctx)
-        })
+        router
+          .post('/image', async (ctx) => {
+            const { default: UploadController } = await import('#controllers/upload_controller')
+            const uploadService = await ctx.containerResolver.make('UploadService')
+            return new UploadController(uploadService).image(ctx)
+          })
+          .use(async (ctx, next) => {
+            return new RateLimitMiddleware().handle(ctx, next, rateLimitConfig.upload)
+          })
 
-        router.post('/file', async (ctx) => {
-          const { default: UploadController } = await import('#controllers/upload_controller')
-          const uploadService = await ctx.containerResolver.make('UploadService')
-          return new UploadController(uploadService).file(ctx)
-        })
+        router
+          .post('/file', async (ctx) => {
+            const { default: UploadController } = await import('#controllers/upload_controller')
+            const uploadService = await ctx.containerResolver.make('UploadService')
+            return new UploadController(uploadService).file(ctx)
+          })
+          .use(async (ctx, next) => {
+            return new RateLimitMiddleware().handle(ctx, next, rateLimitConfig.upload)
+          })
 
         router.get('/:fileId', async (ctx) => {
           const { default: UploadController } = await import('#controllers/upload_controller')
@@ -248,10 +269,10 @@ router
       .use(middleware.auth())
 
     /*
-  |────────────────────────────────────────────────────────────────────
-  | Conversation Routes — /api/v1/conversations/*
-  |────────────────────────────────────────────────────────────────────
-  */
+    |──────────────────────────────────────────────────────────────────
+    | Conversation Routes — /api/v1/conversations/*
+    |──────────────────────────────────────────────────────────────────
+    */
     router
       .group(() => {
         router.post('/', async (ctx) => {
@@ -311,6 +332,9 @@ router
             return new MessageController(messageService).send(ctx)
           })
           .use(middleware.conversationAccess())
+          .use(async (ctx, next) => {
+            return new RateLimitMiddleware().handle(ctx, next, rateLimitConfig.message)
+          })
 
         router
           .get('/:id/messages', async (ctx) => {
