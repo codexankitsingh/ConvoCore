@@ -13,4 +13,5 @@ export const controllers = {
   Profile: () => import('#controllers/profile_controller'),
   Realtime: () => import('#controllers/realtime_controller'),
   Search: () => import('#controllers/search_controller'),
+  Upload: () => import('#controllers/upload_controller'),
 }

@@ -95,6 +95,35 @@ export class MessageSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class UploadSchema extends BaseModel {
+  static $columns = ['category', 'createdAt', 'disk', 'id', 'mimeType', 'originalName', 'path', 'size', 'storedName', 'updatedAt', 'url', 'userId'] as const
+  $columns = UploadSchema.$columns
+  @column()
+  declare category: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare disk: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare mimeType: string
+  @column()
+  declare originalName: string
+  @column()
+  declare path: string
+  @column()
+  declare size: bigint | number
+  @column()
+  declare storedName: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare url: string
+  @column()
+  declare userId: string
+}
+
 export class UserSchema extends BaseModel {
   static $columns = ['createdAt', 'email', 'id', 'isGuest', 'name', 'password', 'updatedAt'] as const
   $columns = UserSchema.$columns

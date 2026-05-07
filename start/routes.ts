@@ -170,7 +170,45 @@ router
       .use(middleware.auth())
 
     /*
-  
+      /*
+  |────────────────────────────────────────────────────────────────────
+  | Upload Routes — /api/v1/uploads/*
+  |────────────────────────────────────────────────────────────────────
+  */
+    router
+      .group(() => {
+        // Upload image
+        router.post('/image', async (ctx) => {
+          const { default: UploadController } = await import('#controllers/upload_controller')
+          const uploadService = await ctx.containerResolver.make('UploadService')
+          return new UploadController(uploadService).image(ctx)
+        })
+
+        // Upload file
+        router.post('/file', async (ctx) => {
+          const { default: UploadController } = await import('#controllers/upload_controller')
+          const uploadService = await ctx.containerResolver.make('UploadService')
+          return new UploadController(uploadService).file(ctx)
+        })
+
+        // Get file metadata
+        router.get('/:fileId', async (ctx) => {
+          const { default: UploadController } = await import('#controllers/upload_controller')
+          const uploadService = await ctx.containerResolver.make('UploadService')
+          return new UploadController(uploadService).show(ctx)
+        })
+
+        // Delete file
+        router.delete('/:fileId', async (ctx) => {
+          const { default: UploadController } = await import('#controllers/upload_controller')
+          const uploadService = await ctx.containerResolver.make('UploadService')
+          return new UploadController(uploadService).destroy(ctx)
+        })
+      })
+      .prefix('/uploads')
+      .use(middleware.auth())
+
+    /*
   
   |────────────────────────────────────────────────────────────────────
   | Conversation Routes — /api/v1/conversations/*

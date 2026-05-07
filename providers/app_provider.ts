@@ -37,12 +37,6 @@ export default class AppProvider {
       return new PresenceService(realtimeService)
     })
 
-    // ── Search Service ───────────────────────────────────────────────
-    this.app.container.bind('SearchService', async () => {
-      const { default: SearchService } = await import('#services/search_service')
-      return new SearchService()
-    })
-
     // ── Conversation Service ─────────────────────────────────────────
     this.app.container.bind('IConversationService', async () => {
       const { default: ConversationService } = await import('#services/conversation_service')
@@ -65,6 +59,18 @@ export default class AppProvider {
       const conversationRepository = await this.app.container.make('IConversationRepository')
       const realtimeService = await this.app.container.make('RealtimeService')
       return new MessageService(messageRepository, conversationRepository, realtimeService)
+    })
+
+    // ── Search Service ───────────────────────────────────────────────
+    this.app.container.bind('SearchService', async () => {
+      const { default: SearchService } = await import('#services/search_service')
+      return new SearchService()
+    })
+
+    // ── Upload Service ───────────────────────────────────────────────
+    this.app.container.bind('UploadService', async () => {
+      const { default: UploadService } = await import('#services/upload_service')
+      return new UploadService()
     })
   }
 
