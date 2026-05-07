@@ -21,9 +21,9 @@ export type ScannedRoutes = {
     'subscribe': { paramsTuple?: []; params?: {} }
     'unsubscribe': { paramsTuple?: []; params?: {} }
   }
-  DELETE: {
-  }
   PATCH: {
+  }
+  DELETE: {
   }
 }
 declare module '@adonisjs/core/types/http' {

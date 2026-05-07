@@ -4,13 +4,6 @@ import transmit from '@adonisjs/transmit/services/main'
 |--------------------------------------------------------------------------
 | RealtimeService
 |--------------------------------------------------------------------------
-|
-| Centralizes ALL SSE broadcast logic for the entire application.
-|
-| Channel convention:
-|   conversations/{id}  → events for a specific conversation
-|   users/{id}          → personal events for a specific user
-|
 */
 export default class RealtimeService {
   /*
@@ -87,6 +80,18 @@ export default class RealtimeService {
   broadcastTyping(conversationId: string, data: object): void {
     transmit.broadcast(`conversations/${conversationId}`, {
       event: 'presence:typing',
+      data,
+    })
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Notification Events
+  |--------------------------------------------------------------------------
+  */
+  broadcastNotification(userId: string, data: object): void {
+    transmit.broadcast(`users/${userId}`, {
+      event: 'notification:new',
       data,
     })
   }

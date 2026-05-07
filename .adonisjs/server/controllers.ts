@@ -9,6 +9,7 @@ export const controllers = {
   Conversation: () => import('#controllers/conversation_controller'),
   Message: () => import('#controllers/message_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
+  Notification: () => import('#controllers/notification_controller'),
   Presence: () => import('#controllers/presence_controller'),
   Profile: () => import('#controllers/profile_controller'),
   Realtime: () => import('#controllers/realtime_controller'),

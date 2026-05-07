@@ -1,109 +1,225 @@
+import db from '@adonisjs/lucid/services/db'
 import Conversation from '#models/conversation'
-import ConversationParticipant from '#models/conversation_participant'
 import type {
   IConversationRepository,
   CreateConversationDto,
-} from './interfaces/i_conversation_repository.js'
+} from '#repositories/interfaces/i_conversation_repository'
 
 /*
 |--------------------------------------------------------------------------
 | ConversationRepository
 |--------------------------------------------------------------------------
-|
-| All database queries for conversations live here.
-| Single Responsibility: ONLY handles conversation data access.
-|
+| Uses ONLY raw db queries for conversation_participants table.
+| Never uses ConversationParticipant model to avoid column mapping issues.
 */
-export default class ConversationRepository implements IConversationRepository {
-  /** Find by ID — no relations */
-  async findById(id: string): Promise<Conversation | null> {
-    return Conversation.find(id)
-  }
+export default class ConversationRepository
+  implements IConversationRepository
+{
+  /*
+  |--------------------------------------------------------------------------
+  | Create
+  |--------------------------------------------------------------------------
+  */
+  async create(data: CreateConversationDto & { participantIds: string[] }): Promise<any> {
+    const conversation = await db.transaction(async (trx) => {
+      const conv = await Conversation.create(
+        {
+          type: data.type,
+          name: data.name ?? null,
+          createdBy: data.createdBy,
+        },
+        { client: trx }
+      )
 
-  /** Find by ID — with participants and their user data */
-  async findByIdWithParticipants(id: string): Promise<Conversation | null> {
-    return Conversation.query()
-      .where('id', id)
-      .preload('participants', (query) => {
-        query.pivotColumns(['role', 'last_read_at', 'created_at'])
-      })
-      .first()
-  }
+      const rows = (data.participantIds ?? [data.createdBy]).map(
+        (userId: string) => ({
+          conversation_id: conv.id,
+          user_id: userId,
+          role: userId === data.createdBy ? 'admin' : 'member',
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+      )
 
-  /** Get all conversations for a user (ordered by latest activity) */
-  async findByUserId(userId: string): Promise<Conversation[]> {
-    return Conversation.query()
-      .whereHas('participants', (query) => {
-        query.where('user_id', userId)
-      })
-      .preload('participants', (query) => {
-        query.pivotColumns(['role', 'last_read_at', 'created_at'])
-      })
-      .orderBy('updated_at', 'desc')
-  }
-
-  /** Create a new conversation */
-  async create(data: CreateConversationDto): Promise<Conversation> {
-    return Conversation.create({
-      type: data.type,
-      name: data.name ?? null,
-      avatarUrl: data.avatarUrl ?? null,
-      createdBy: data.createdBy,
+      await trx.table('conversation_participants').insert(rows)
+      return conv
     })
+
+    return this.findByIdWithParticipants(conversation.id)
   }
 
-  /** Delete conversation (cascades to participants + messages) */
-  async delete(id: string): Promise<void> {
-    await Conversation.query().where('id', id).delete()
+  /*
+  |--------------------------------------------------------------------------
+  | findByUserId
+  |--------------------------------------------------------------------------
+  */
+  async findByUserId(userId: string): Promise<any[]> {
+    const rows = await db
+      .from('conversations as c')
+      .join('conversation_participants as cp', 'cp.conversation_id', 'c.id')
+      .whereRaw('cp.user_id = ?', [userId])
+      .select('c.id')
+      .orderBy('c.updated_at', 'desc')
+
+    const results: any[] = []
+    for (const row of rows) {
+      const conv = await this.findByIdWithParticipants(row.id)
+      if (conv) results.push(conv)
+    }
+    return results
   }
 
-  /** Add participant to conversation */
+  /*
+  |--------------------------------------------------------------------------
+  | findById
+  |--------------------------------------------------------------------------
+  */
+  async findById(id: string): Promise<any | null> {
+    return this.findByIdWithParticipants(id)
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | findByIdWithParticipants
+  |--------------------------------------------------------------------------
+  */
+  async findByIdWithParticipants(id: string): Promise<any | null> {
+    const conversation = await Conversation.find(id)
+    if (!conversation) return null
+
+    const participants = await db
+      .from('conversation_participants as cp')
+      .join('users as u', 'u.id', 'cp.user_id')
+      .whereRaw('cp.conversation_id = ?', [id])
+      .select([
+        'u.id',
+        'u.name',
+        'u.email',
+        'u.is_guest as isGuest',
+        'cp.role',
+      ])
+
+    return {
+      id: conversation.id,
+      type: conversation.type,
+      name: conversation.name,
+      avatarUrl: conversation.avatarUrl ?? null,
+      createdBy: conversation.createdBy,
+      participants: participants.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        isGuest: p.isGuest,
+        role: p.role,
+      })),
+      createdAt: conversation.createdAt.toISO(),
+      updatedAt: conversation.updatedAt.toISO(),
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | findDirectConversation
+  |--------------------------------------------------------------------------
+  */
+  async findDirectConversation(
+    userAId: string,
+    userBId: string
+  ): Promise<any | null> {
+    const result = await db
+      .from('conversations as c')
+      .join('conversation_participants as cp1', 'cp1.conversation_id', 'c.id')
+      .join('conversation_participants as cp2', 'cp2.conversation_id', 'c.id')
+      .where('c.type', 'direct')
+      .whereRaw('cp1.user_id = ?', [userAId])
+      .whereRaw('cp2.user_id = ?', [userBId])
+      .select('c.id')
+      .first()
+
+    if (!result) return null
+    return this.findByIdWithParticipants(result.id)
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | isParticipant — 100% raw SQL, no model involved
+  |--------------------------------------------------------------------------
+  */
+  async isParticipant(
+    conversationId: string,
+    userId: string
+  ): Promise<boolean> {
+    const result = await db
+      .from('conversation_participants')
+      .whereRaw('conversation_id = ?', [conversationId])
+      .whereRaw('user_id = ?', [userId])
+      .select(db.raw('1 as found'))
+      .first()
+
+    return !!result
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | addParticipant
+  |--------------------------------------------------------------------------
+  */
   async addParticipant(
     conversationId: string,
     userId: string,
     role: 'admin' | 'member' = 'member'
-  ): Promise<ConversationParticipant> {
-    return ConversationParticipant.create({
-      conversationId,
-      userId,
+  ): Promise<any> {
+    await db.table('conversation_participants').insert({
+      conversation_id: conversationId,
+      user_id: userId,
       role,
+      created_at: new Date(),
+      updated_at: new Date(),
     })
+    return { conversationId, userId, role }
   }
 
-  /** Remove participant from conversation */
-  async removeParticipant(conversationId: string, userId: string): Promise<void> {
-    await ConversationParticipant.query()
-      .where('conversation_id', conversationId)
-      .where('user_id', userId)
+  /*
+  |--------------------------------------------------------------------------
+  | removeParticipant
+  |--------------------------------------------------------------------------
+  */
+  async removeParticipant(
+    conversationId: string,
+    userId: string
+  ): Promise<void> {
+    await db
+      .from('conversation_participants')
+      .whereRaw('conversation_id = ?', [conversationId])
+      .whereRaw('user_id = ?', [userId])
       .delete()
   }
 
-  /** Check if user is a participant */
-  async isParticipant(conversationId: string, userId: string): Promise<boolean> {
-    const record = await ConversationParticipant.query()
-      .where('conversation_id', conversationId)
-      .where('user_id', userId)
-      .first()
-    return !!record
-  }
-
-  /** Get participant record with role */
+  /*
+  |--------------------------------------------------------------------------
+  | getParticipant
+  |--------------------------------------------------------------------------
+  */
   async getParticipant(
     conversationId: string,
     userId: string
-  ): Promise<ConversationParticipant | null> {
-    return ConversationParticipant.query()
-      .where('conversation_id', conversationId)
-      .where('user_id', userId)
+  ): Promise<any | null> {
+    const result = await db
+      .from('conversation_participants')
+      .whereRaw('conversation_id = ?', [conversationId])
+      .whereRaw('user_id = ?', [userId])
+      .select(['conversation_id', 'user_id', 'role'])
       .first()
+
+    return result ?? null
   }
 
-  /** Find existing direct conversation between two users */
-  async findDirectConversation(userAId: string, userBId: string): Promise<Conversation | null> {
-    return Conversation.query()
-      .where('type', 'direct')
-      .whereHas('participants', (q) => q.where('user_id', userAId))
-      .whereHas('participants', (q) => q.where('user_id', userBId))
-      .first()
+  /*
+  |--------------------------------------------------------------------------
+  | delete
+  |--------------------------------------------------------------------------
+  */
+  async delete(conversationId: string): Promise<void> {
+    await Conversation.query().where('id', conversationId).delete()
   }
 }

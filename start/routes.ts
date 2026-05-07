@@ -104,7 +104,6 @@ router
   */
     router
       .group(() => {
-        // Heartbeat — mark user online
         router.post('/online', async (ctx) => {
           const { default: PresenceController } = await import('#controllers/presence_controller')
           const presenceService = await ctx.containerResolver.make('PresenceService')
@@ -112,7 +111,6 @@ router
           return new PresenceController(presenceService, conversationRepository).online(ctx)
         })
 
-        // Mark user offline
         router.post('/offline', async (ctx) => {
           const { default: PresenceController } = await import('#controllers/presence_controller')
           const presenceService = await ctx.containerResolver.make('PresenceService')
@@ -120,7 +118,6 @@ router
           return new PresenceController(presenceService, conversationRepository).offline(ctx)
         })
 
-        // Typing indicator
         router.post('/typing', async (ctx) => {
           const { default: PresenceController } = await import('#controllers/presence_controller')
           const presenceService = await ctx.containerResolver.make('PresenceService')
@@ -128,7 +125,6 @@ router
           return new PresenceController(presenceService, conversationRepository).typing(ctx)
         })
 
-        // Get presence for a conversation
         router.get('/:conversationId', async (ctx) => {
           const { default: PresenceController } = await import('#controllers/presence_controller')
           const presenceService = await ctx.containerResolver.make('PresenceService')
@@ -138,6 +134,57 @@ router
       })
       .prefix('/presence')
       .use(middleware.auth())
+
+    /*
+  |────────────────────────────────────────────────────────────────────
+  | Notification Routes — /api/v1/notifications/*
+  |────────────────────────────────────────────────────────────────────
+  */
+    router
+      .group(() => {
+        // Get unread count — MUST be before /:id routes
+        router.get('/unread-count', async (ctx) => {
+          const { default: NotificationController } =
+            await import('#controllers/notification_controller')
+          const notificationService = await ctx.containerResolver.make('NotificationService')
+          return new NotificationController(notificationService).unreadCount(ctx)
+        })
+
+        // Mark all as read — MUST be before /:id routes
+        router.patch('/read-all', async (ctx) => {
+          const { default: NotificationController } =
+            await import('#controllers/notification_controller')
+          const notificationService = await ctx.containerResolver.make('NotificationService')
+          return new NotificationController(notificationService).markAllRead(ctx)
+        })
+
+        // List notifications
+        router.get('/', async (ctx) => {
+          const { default: NotificationController } =
+            await import('#controllers/notification_controller')
+          const notificationService = await ctx.containerResolver.make('NotificationService')
+          return new NotificationController(notificationService).index(ctx)
+        })
+
+        // Mark single as read
+        router.patch('/:id/read', async (ctx) => {
+          const { default: NotificationController } =
+            await import('#controllers/notification_controller')
+          const notificationService = await ctx.containerResolver.make('NotificationService')
+          return new NotificationController(notificationService).markRead(ctx)
+        })
+
+        // Delete notification
+        router.delete('/:id', async (ctx) => {
+          const { default: NotificationController } =
+            await import('#controllers/notification_controller')
+          const notificationService = await ctx.containerResolver.make('NotificationService')
+          return new NotificationController(notificationService).destroy(ctx)
+        })
+      })
+      .prefix('/notifications')
+      .use(middleware.auth())
+
     /*
   |────────────────────────────────────────────────────────────────────
   | Search Routes — /api/v1/search/*
@@ -145,21 +192,18 @@ router
   */
     router
       .group(() => {
-        // Search messages
         router.get('/messages', async (ctx) => {
           const { default: SearchController } = await import('#controllers/search_controller')
           const searchService = await ctx.containerResolver.make('SearchService')
           return new SearchController(searchService).messages(ctx)
         })
 
-        // Search conversations
         router.get('/conversations', async (ctx) => {
           const { default: SearchController } = await import('#controllers/search_controller')
           const searchService = await ctx.containerResolver.make('SearchService')
           return new SearchController(searchService).conversations(ctx)
         })
 
-        // Global search
         router.get('/', async (ctx) => {
           const { default: SearchController } = await import('#controllers/search_controller')
           const searchService = await ctx.containerResolver.make('SearchService')
@@ -170,35 +214,30 @@ router
       .use(middleware.auth())
 
     /*
-      /*
   |────────────────────────────────────────────────────────────────────
   | Upload Routes — /api/v1/uploads/*
   |────────────────────────────────────────────────────────────────────
   */
     router
       .group(() => {
-        // Upload image
         router.post('/image', async (ctx) => {
           const { default: UploadController } = await import('#controllers/upload_controller')
           const uploadService = await ctx.containerResolver.make('UploadService')
           return new UploadController(uploadService).image(ctx)
         })
 
-        // Upload file
         router.post('/file', async (ctx) => {
           const { default: UploadController } = await import('#controllers/upload_controller')
           const uploadService = await ctx.containerResolver.make('UploadService')
           return new UploadController(uploadService).file(ctx)
         })
 
-        // Get file metadata
         router.get('/:fileId', async (ctx) => {
           const { default: UploadController } = await import('#controllers/upload_controller')
           const uploadService = await ctx.containerResolver.make('UploadService')
           return new UploadController(uploadService).show(ctx)
         })
 
-        // Delete file
         router.delete('/:fileId', async (ctx) => {
           const { default: UploadController } = await import('#controllers/upload_controller')
           const uploadService = await ctx.containerResolver.make('UploadService')
@@ -209,14 +248,12 @@ router
       .use(middleware.auth())
 
     /*
-  
   |────────────────────────────────────────────────────────────────────
   | Conversation Routes — /api/v1/conversations/*
   |────────────────────────────────────────────────────────────────────
   */
     router
       .group(() => {
-        // Create conversation
         router.post('/', async (ctx) => {
           const { default: ConversationController } =
             await import('#controllers/conversation_controller')
@@ -224,7 +261,6 @@ router
           return new ConversationController(conversationService).create(ctx)
         })
 
-        // List my conversations
         router.get('/', async (ctx) => {
           const { default: ConversationController } =
             await import('#controllers/conversation_controller')
@@ -232,7 +268,6 @@ router
           return new ConversationController(conversationService).list(ctx)
         })
 
-        // Get single conversation
         router
           .get('/:id', async (ctx) => {
             const { default: ConversationController } =
@@ -242,7 +277,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        // Delete conversation
         router
           .delete('/:id', async (ctx) => {
             const { default: ConversationController } =
@@ -252,7 +286,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        // Add participant
         router
           .post('/:id/participants', async (ctx) => {
             const { default: ConversationController } =
@@ -262,7 +295,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        // Remove participant
         router
           .delete('/:id/participants/:userId', async (ctx) => {
             const { default: ConversationController } =
@@ -272,7 +304,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        // Send message
         router
           .post('/:id/messages', async (ctx) => {
             const { default: MessageController } = await import('#controllers/message_controller')
@@ -281,7 +312,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        // List messages
         router
           .get('/:id/messages', async (ctx) => {
             const { default: MessageController } = await import('#controllers/message_controller')
@@ -290,7 +320,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        // Edit message
         router
           .patch('/:id/messages/:messageId', async (ctx) => {
             const { default: MessageController } = await import('#controllers/message_controller')
@@ -299,7 +328,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        // Delete message
         router
           .delete('/:id/messages/:messageId', async (ctx) => {
             const { default: MessageController } = await import('#controllers/message_controller')
@@ -308,7 +336,6 @@ router
           })
           .use(middleware.conversationAccess())
 
-        // Mark messages as read
         router
           .post('/:id/messages/:messageId/read', async (ctx) => {
             const { default: MessageController } = await import('#controllers/message_controller')

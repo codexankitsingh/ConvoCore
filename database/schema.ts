@@ -95,6 +95,35 @@ export class MessageSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class NotificationSchema extends BaseModel {
+  static $columns = ['actorId', 'body', 'conversationId', 'createdAt', 'id', 'isRead', 'messageId', 'readAt', 'title', 'type', 'updatedAt', 'userId'] as const
+  $columns = NotificationSchema.$columns
+  @column()
+  declare actorId: string | null
+  @column()
+  declare body: string
+  @column()
+  declare conversationId: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare isRead: boolean
+  @column()
+  declare messageId: string | null
+  @column.dateTime()
+  declare readAt: DateTime | null
+  @column()
+  declare title: string
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: string
+}
+
 export class UploadSchema extends BaseModel {
   static $columns = ['category', 'createdAt', 'disk', 'id', 'mimeType', 'originalName', 'path', 'size', 'storedName', 'updatedAt', 'url', 'userId'] as const
   $columns = UploadSchema.$columns

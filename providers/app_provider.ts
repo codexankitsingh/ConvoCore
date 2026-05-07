@@ -30,6 +30,21 @@ export default class AppProvider {
       return new RealtimeService()
     })
 
+    // ── Notification Repository ──────────────────────────────────────
+    this.app.container.bind('INotificationRepository', async () => {
+      const { default: NotificationRepository } =
+        await import('#repositories/notification_repository')
+      return new NotificationRepository()
+    })
+
+    // ── Notification Service ─────────────────────────────────────────
+    this.app.container.bind('NotificationService', async () => {
+      const { default: NotificationService } = await import('#services/notification_service')
+      const notificationRepository = await this.app.container.make('INotificationRepository')
+      const realtimeService = await this.app.container.make('RealtimeService')
+      return new NotificationService(notificationRepository, realtimeService)
+    })
+
     // ── Presence Service ─────────────────────────────────────────────
     this.app.container.bind('PresenceService', async () => {
       const { default: PresenceService } = await import('#services/presence_service')
@@ -43,7 +58,13 @@ export default class AppProvider {
       const conversationRepository = await this.app.container.make('IConversationRepository')
       const userRepository = await this.app.container.make('IUserRepository')
       const realtimeService = await this.app.container.make('RealtimeService')
-      return new ConversationService(conversationRepository, userRepository, realtimeService)
+      const notificationService = await this.app.container.make('NotificationService')
+      return new ConversationService(
+        conversationRepository,
+        userRepository,
+        realtimeService,
+        notificationService
+      )
     })
 
     // ── Message Repository ───────────────────────────────────────────
@@ -53,12 +74,13 @@ export default class AppProvider {
     })
 
     // ── Message Service ──────────────────────────────────────────────
+    // ── Message Service ──────────────────────────────────────────────────
     this.app.container.bind('IMessageService', async () => {
       const { default: MessageService } = await import('#services/message_service')
       const messageRepository = await this.app.container.make('IMessageRepository')
-      const conversationRepository = await this.app.container.make('IConversationRepository')
       const realtimeService = await this.app.container.make('RealtimeService')
-      return new MessageService(messageRepository, conversationRepository, realtimeService)
+      const notificationService = await this.app.container.make('NotificationService')
+      return new MessageService(messageRepository, realtimeService, notificationService)
     })
 
     // ── Search Service ───────────────────────────────────────────────
