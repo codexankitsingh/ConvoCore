@@ -30,6 +30,8 @@
 - [Tech Stack](#-tech-stack)
 - [Prerequisites](#-prerequisites)
 - [Quick Start](#-quick-start)
+- [Architecture](#-architecture)
+- [Package Structure & Libraries](#-package-structure--libraries)
 - [Complete API Guide](#-complete-api-guide)
   - [1. Authentication](#1--authentication)
   - [2. Conversations](#2--conversations)
@@ -39,8 +41,6 @@
   - [6. Search](#6--search)
   - [7. File Uploads](#7--file-uploads)
   - [8. Real-time Events (SSE)](#8--real-time-events-sse)
-- [Architecture](#-architecture)
-- [Package Structure & Libraries](#-package-structure--libraries)
 - [Environment Variables](#-environment-variables)
 - [Running Tests](#-running-tests)
 - [Production Deployment](#-production-deployment)
@@ -134,6 +134,86 @@ Expected response:
 ```
 
 ✅ **You're ready to go!**
+
+---
+
+## 🏗 Architecture
+
+```mermaid
+flowchart TD
+    %% Define Nodes
+    Client([📱 Client Apps])
+    Nginx[[🌐 Nginx Reverse Proxy]]
+    
+    subgraph AdonisJS[AdonisJS v7 Application]
+        direction TB
+        Router{HTTP Router}
+        MW(🛡️ Middleware)
+        Val(✔️ VineJS Validators)
+        Ctrl(🎮 Controllers)
+        Svc(⚙️ Services)
+        Repo(🗄️ Repositories)
+        Transmit(⚡ Transmit SSE)
+        
+        Router --> MW --> Val --> Ctrl --> Svc --> Repo
+        Svc --> Transmit
+    end
+    
+    DB[(🐘 PostgreSQL 16)]
+    Redis[(🔴 Redis 7)]
+
+    %% Define Connections
+    Client == "HTTPS / SSE" ==> Nginx
+    Nginx == "Proxy Pass" ==> Router
+    
+    Repo == "Lucid ORM" ==> DB
+    Svc == "Cache / PubSub" ==> Redis
+    MW -. "Token Blacklist / Rate Limit" .-> Redis
+    Transmit -. "Event Broadcasting" .-> Redis
+    
+    %% Styling
+    classDef proxy fill:#2b3137,stroke:#fafbfc,stroke-width:2px,color:#fff;
+    classDef app fill:#5a67d8,stroke:#4c51bf,stroke-width:2px,color:#fff;
+    classDef db fill:#2f855a,stroke:#276749,stroke-width:2px,color:#fff;
+    classDef redis fill:#c53030,stroke:#9b2c2c,stroke-width:2px,color:#fff;
+    
+    class Nginx proxy;
+    class Router,MW,Val,Ctrl,Svc,Repo,Transmit app;
+    class DB db;
+    class Redis redis;
+```
+
+**Key Design Patterns:**
+- **Controller → Service → Repository** layered architecture
+- **Dependency Injection** via AdonisJS IoC container
+- **Interface-based contracts** for all services and repositories
+- **JWT authentication** with Redis-backed token lifecycle
+- **Redis** for rate limiting, token blacklisting, and presence
+
+---
+
+## 📦 Package Structure & Libraries
+
+The project follows a standard AdonisJS domain-driven directory structure:
+
+```text
+app/
+├── controllers/    # HTTP layer: handles requests and returns responses
+├── exceptions/     # Custom error handling and global exception handler
+├── middleware/     # Request interceptors (Auth, Rate Limiting, Guards)
+├── models/         # Lucid ORM data models and relationships
+├── repositories/   # Data access layer (DB queries abstracting Lucid)
+├── services/       # Core business logic and use cases
+└── validators/     # VineJS schema validation rules
+```
+
+**Core Libraries Used:**
+- `@adonisjs/core`: Web framework foundation and IoC container.
+- `@adonisjs/lucid`: Powerful SQL ORM and query builder for PostgreSQL.
+- `@adonisjs/redis`: Redis client for caching, rate limiting, and pub/sub.
+- `@adonisjs/transmit`: Server-Sent Events (SSE) provider for real-time broadcasting.
+- `@vinejs/vine`: Fast, schema-based data validation.
+- `jsonwebtoken`: Standard library for creating and verifying JWTs.
 
 ---
 
@@ -530,86 +610,6 @@ eventSource.onmessage = (event) => {
   console.log('Real-time event:', data)
 }
 ```
-
----
-
-## 🏗 Architecture
-
-```mermaid
-flowchart TD
-    %% Define Nodes
-    Client([📱 Client Apps])
-    Nginx[[🌐 Nginx Reverse Proxy]]
-    
-    subgraph AdonisJS[AdonisJS v7 Application]
-        direction TB
-        Router{HTTP Router}
-        MW(🛡️ Middleware)
-        Val(✔️ VineJS Validators)
-        Ctrl(🎮 Controllers)
-        Svc(⚙️ Services)
-        Repo(🗄️ Repositories)
-        Transmit(⚡ Transmit SSE)
-        
-        Router --> MW --> Val --> Ctrl --> Svc --> Repo
-        Svc --> Transmit
-    end
-    
-    DB[(🐘 PostgreSQL 16)]
-    Redis[(🔴 Redis 7)]
-
-    %% Define Connections
-    Client == "HTTPS / SSE" ==> Nginx
-    Nginx == "Proxy Pass" ==> Router
-    
-    Repo == "Lucid ORM" ==> DB
-    Svc == "Cache / PubSub" ==> Redis
-    MW -. "Token Blacklist / Rate Limit" .-> Redis
-    Transmit -. "Event Broadcasting" .-> Redis
-    
-    %% Styling
-    classDef proxy fill:#2b3137,stroke:#fafbfc,stroke-width:2px,color:#fff;
-    classDef app fill:#5a67d8,stroke:#4c51bf,stroke-width:2px,color:#fff;
-    classDef db fill:#2f855a,stroke:#276749,stroke-width:2px,color:#fff;
-    classDef redis fill:#c53030,stroke:#9b2c2c,stroke-width:2px,color:#fff;
-    
-    class Nginx proxy;
-    class Router,MW,Val,Ctrl,Svc,Repo,Transmit app;
-    class DB db;
-    class Redis redis;
-```
-
-**Key Design Patterns:**
-- **Controller → Service → Repository** layered architecture
-- **Dependency Injection** via AdonisJS IoC container
-- **Interface-based contracts** for all services and repositories
-- **JWT authentication** with Redis-backed token lifecycle
-- **Redis** for rate limiting, token blacklisting, and presence
-
----
-
-## 📦 Package Structure & Libraries
-
-The project follows a standard AdonisJS domain-driven directory structure:
-
-```text
-app/
-├── controllers/    # HTTP layer: handles requests and returns responses
-├── exceptions/     # Custom error handling and global exception handler
-├── middleware/     # Request interceptors (Auth, Rate Limiting, Guards)
-├── models/         # Lucid ORM data models and relationships
-├── repositories/   # Data access layer (DB queries abstracting Lucid)
-├── services/       # Core business logic and use cases
-└── validators/     # VineJS schema validation rules
-```
-
-**Core Libraries Used:**
-- `@adonisjs/core`: Web framework foundation and IoC container.
-- `@adonisjs/lucid`: Powerful SQL ORM and query builder for PostgreSQL.
-- `@adonisjs/redis`: Redis client for caching, rate limiting, and pub/sub.
-- `@adonisjs/transmit`: Server-Sent Events (SSE) provider for real-time broadcasting.
-- `@vinejs/vine`: Fast, schema-based data validation.
-- `jsonwebtoken`: Standard library for creating and verifying JWTs.
 
 ---
 
