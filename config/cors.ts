@@ -9,9 +9,7 @@ import { defineConfig } from '@adonisjs/cors'
 */
 const corsConfig = defineConfig({
   enabled: true,
-  origin: process.env.NODE_ENV === 'production'
-    ? (process.env.APP_URL ? [process.env.APP_URL] : false)
-    : true,
+  origin: true,
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   headers: true,
   exposeHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
