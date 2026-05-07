@@ -132,9 +132,9 @@ export default class NotificationRepository implements INotificationRepository {
   |--------------------------------------------------------------------------
   */
   async delete(id: string, userId: string): Promise<boolean> {
-    const count = await Notification.query().where('id', id).where('user_id', userId).delete()
+    const result = await Notification.query().where('id', id).where('user_id', userId).delete()
 
-    return count > 0
+    return (Array.isArray(result) ? result[0] : result) > 0
   }
 
   /*

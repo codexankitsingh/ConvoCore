@@ -1,5 +1,3 @@
-import type Conversation from '#models/conversation'
-
 /*
 |--------------------------------------------------------------------------
 | IConversationService Interface
@@ -16,17 +14,17 @@ export interface IConversationService {
   get(conversationId: string, userId: string): Promise<ConversationResult>
 
   /** Delete a conversation (admin/creator only) */
-  delete(conversationId: string, userId: string): Promise<void>
+  destroy(conversationId: string, userId: string): Promise<any>
 
   /** Add participant to group conversation */
-  addParticipant(conversationId: string, targetUserId: string, requesterId: string): Promise<void>
+  addParticipant(conversationId: string, targetUserId: string, requesterId: string): Promise<any>
 
   /** Remove participant from group conversation */
   removeParticipant(
     conversationId: string,
     targetUserId: string,
     requesterId: string
-  ): Promise<void>
+  ): Promise<any>
 }
 
 /*
@@ -50,7 +48,7 @@ export interface ParticipantResult {
 
 export interface ConversationResult {
   id: string
-  type: 'direct' | 'group'
+  type: string
   name: string | null
   avatarUrl: string | null
   createdBy: string

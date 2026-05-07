@@ -91,7 +91,7 @@ export default class ConversationController {
     const user = this.getAuthUser(ctx)
     const conversationId = ctx.params.id
 
-    await this.conversationService.delete(conversationId, user.id)
+    await this.conversationService.destroy(conversationId, user.id)
 
     return ctx.response.ok({
       message: 'Conversation deleted successfully',

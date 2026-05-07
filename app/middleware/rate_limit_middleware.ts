@@ -61,12 +61,13 @@ export default class RateLimitMiddleware {
     if (!result.allowed) {
       ctx.response.header('Retry-After', String(Math.ceil((result.resetAt - Date.now()) / 1000)))
 
-      return ctx.response.tooManyRequests({
+      ctx.response.tooManyRequests({
         message: 'Too many requests. Please try again later.',
         code: 'E_RATE_LIMIT_EXCEEDED',
         retryAfter: Math.ceil((result.resetAt - Date.now()) / 1000),
         resetAt: new Date(result.resetAt).toISOString(),
       })
+      return
     }
 
     await next()

@@ -2,7 +2,7 @@ import db from '@adonisjs/lucid/services/db'
 import Conversation from '#models/conversation'
 import type {
   IConversationRepository,
-  CreateConversationDto,
+  CreateConversationData,
 } from '#repositories/interfaces/i_conversation_repository'
 
 /*
@@ -20,7 +20,7 @@ export default class ConversationRepository
   | Create
   |--------------------------------------------------------------------------
   */
-  async create(data: CreateConversationDto & { participantIds: string[] }): Promise<any> {
+  async create(data: CreateConversationData & { participantIds: string[] }): Promise<any> {
     const conversation = await db.transaction(async (trx) => {
       const conv = await Conversation.create(
         {
@@ -54,19 +54,64 @@ export default class ConversationRepository
   |--------------------------------------------------------------------------
   */
   async findByUserId(userId: string): Promise<any[]> {
-    const rows = await db
+    // Step 1: Get all conversation IDs for the user (1 query)
+    const conversations = await db
       .from('conversations as c')
       .join('conversation_participants as cp', 'cp.conversation_id', 'c.id')
       .whereRaw('cp.user_id = ?', [userId])
-      .select('c.id')
+      .select([
+        'c.id',
+        'c.type',
+        'c.name',
+        'c.avatar_url as avatarUrl',
+        'c.created_by as createdBy',
+        'c.created_at as createdAt',
+        'c.updated_at as updatedAt',
+      ])
       .orderBy('c.updated_at', 'desc')
 
-    const results: any[] = []
-    for (const row of rows) {
-      const conv = await this.findByIdWithParticipants(row.id)
-      if (conv) results.push(conv)
+    if (conversations.length === 0) return []
+
+    // Step 2: Batch-load all participants for those conversations (1 query)
+    const conversationIds = conversations.map((c: any) => c.id)
+    const participants = await db
+      .from('conversation_participants as cp')
+      .join('users as u', 'u.id', 'cp.user_id')
+      .whereIn('cp.conversation_id', conversationIds)
+      .select([
+        'cp.conversation_id as conversationId',
+        'u.id',
+        'u.name',
+        'u.email',
+        'u.is_guest as isGuest',
+        'cp.role',
+      ])
+
+    // Step 3: Group participants by conversation ID (in-memory)
+    const participantsMap: Record<string, any[]> = {}
+    for (const p of participants) {
+      if (!participantsMap[p.conversationId]) {
+        participantsMap[p.conversationId] = []
+      }
+      participantsMap[p.conversationId].push({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        isGuest: p.isGuest,
+        role: p.role,
+      })
     }
-    return results
+
+    return conversations.map((c: any) => ({
+      id: c.id,
+      type: c.type,
+      name: c.name,
+      avatarUrl: c.avatarUrl ?? null,
+      createdBy: c.createdBy,
+      participants: participantsMap[c.id] ?? [],
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }))
   }
 
   /*

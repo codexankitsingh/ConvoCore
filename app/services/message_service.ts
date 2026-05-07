@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import type { IMessageService } from '#services/interfaces/i_message_service'
 import type { IMessageRepository } from '#repositories/interfaces/i_message_repository'
 import type RealtimeService from '#services/realtime_service'
@@ -76,7 +77,7 @@ export default class MessageService implements IMessageService {
         messageContent: data.content,
       })
       .catch((err: any) =>
-        console.error('Notification error (non-fatal):', err?.message)
+        logger.error({ err: err?.message }, 'Notification error (non-fatal)')
       )
 
     return message

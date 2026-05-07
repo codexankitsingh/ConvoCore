@@ -198,8 +198,12 @@ export default class AuthService implements IAuthService {
   */
   private async generateTokenPair(user: User): Promise<TokenPair> {
     const secret = env.get('JWT_SECRET')
+    const accessExpiresIn = env.get('JWT_ACCESS_EXPIRES_IN')
+    const refreshExpiresIn = env.get('JWT_REFRESH_EXPIRES_IN')
+    const accessTtl = this.parseExpiryToSeconds(accessExpiresIn)
+    const refreshTtl = this.parseExpiryToSeconds(refreshExpiresIn)
 
-    // Short-lived access token (15 minutes)
+    // Short-lived access token
     const accessToken = jwt.sign(
       {
         sub: user.id,
@@ -208,27 +212,45 @@ export default class AuthService implements IAuthService {
         type: 'access',
       },
       secret,
-      { expiresIn: '15m' }
+      { expiresIn: accessTtl }
     )
 
-    // Long-lived refresh token (7 days)
+    // Long-lived refresh token
     const refreshToken = jwt.sign(
       {
         sub: user.id,
         type: 'refresh',
       },
       secret,
-      { expiresIn: '7d' }
+      { expiresIn: refreshTtl }
     )
 
-    // Store refresh token in Redis with 7-day TTL
-    const refreshTtl = 7 * 24 * 60 * 60
+    // Store refresh token in Redis
     await redis.setex(`refresh_token:${user.id}`, refreshTtl, refreshToken)
 
     return {
       accessToken,
       refreshToken,
-      expiresIn: 15 * 60,
+      expiresIn: accessTtl,
+    }
+  }
+
+  /**
+   * Parse JWT expiry strings like '15m', '7d', '1h' to seconds
+   */
+  private parseExpiryToSeconds(expiry: string): number {
+    const match = expiry.match(/^(\d+)([smhd])$/)
+    if (!match) return 900 // default 15 minutes
+
+    const value = parseInt(match[1], 10)
+    const unit = match[2]
+
+    switch (unit) {
+      case 's': return value
+      case 'm': return value * 60
+      case 'h': return value * 3600
+      case 'd': return value * 86400
+      default: return 900
     }
   }
 

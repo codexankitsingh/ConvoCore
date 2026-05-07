@@ -367,14 +367,6 @@ router
             return new MessageController(messageService).markRead(ctx)
           })
           .use(middleware.conversationAccess())
-
-                router
-          .post('/:id/messages/:messageId/read', async (ctx) => {
-            const { default: MessageController } = await import('#controllers/message_controller')
-            const messageService = await ctx.containerResolver.make('IMessageService')
-            return new MessageController(messageService).markRead(ctx)
-          })
-          .use(middleware.conversationAccess())
       })
       .prefix('/conversations')
       .use(middleware.auth())

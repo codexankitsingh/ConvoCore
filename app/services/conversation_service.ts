@@ -1,5 +1,6 @@
 import type { IConversationRepository } from '#repositories/interfaces/i_conversation_repository'
 import type { IUserRepository } from '#repositories/interfaces/i_user_repository'
+import type { IConversationService } from '#services/interfaces/i_conversation_service'
 import type RealtimeService from '#services/realtime_service'
 import type NotificationService from '#services/notification_service'
 import { Exception } from '@adonisjs/core/exceptions'
@@ -9,7 +10,7 @@ import { Exception } from '@adonisjs/core/exceptions'
 | ConversationService
 |--------------------------------------------------------------------------
 */
-export default class ConversationService {
+export default class ConversationService implements IConversationService {
   constructor(
     private readonly conversationRepository: IConversationRepository,
     private readonly userRepository: IUserRepository,
