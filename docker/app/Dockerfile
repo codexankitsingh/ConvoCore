@@ -1,9 +1,8 @@
 # ─────────────────────────────────────────────
-# STAGE 1: BASE
+# STAGE 1: BASE — shared system dependencies
 # ─────────────────────────────────────────────
 FROM node:24-alpine AS base
 
-# System deps needed for native modules (bcrypt, pg)
 RUN apk add --no-cache \
     python3 \
     make \
@@ -14,41 +13,57 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 # ─────────────────────────────────────────────
-# STAGE 2: DEVELOPMENT (hot reload)
+# STAGE 2: DEPENDENCIES — install all deps
 # ─────────────────────────────────────────────
-FROM base AS development
+FROM base AS deps
+
+COPY package*.json ./
+RUN npm ci
+
+# ─────────────────────────────────────────────
+# STAGE 3: BUILDER — compile TypeScript
+# ─────────────────────────────────────────────
+FROM deps AS builder
+
+COPY . .
+RUN node ace build
+
+# ─────────────────────────────────────────────
+# STAGE 4: DEVELOPMENT — hot reload
+# ─────────────────────────────────────────────
+FROM deps AS development
 
 ENV NODE_ENV=development
-
-# Copy package files first (Docker layer cache optimization)
-COPY package*.json ./
-
-# Install ALL dependencies
-RUN npm install
-
-# Copy source code
 COPY . .
-
 EXPOSE 3333
-
-# HMR dev server
 CMD ["node", "ace", "serve", "--hmr"]
 
 # ─────────────────────────────────────────────
-# STAGE 3: PRODUCTION
+# STAGE 5: PRODUCTION — lean final image
 # ─────────────────────────────────────────────
-FROM base AS production
+FROM node:24-alpine AS production
+
+RUN apk add --no-cache curl wget
+
+WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY package*.json ./
+# Copy built output from builder stage
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package*.json ./
 
-RUN npm ci --only=production
+# Install production deps only (no devDeps)
+RUN npm ci --omit=dev && npm cache clean --force
 
-COPY . .
-
-RUN npm run build
+# Non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S adonisjs -u 1001 -G nodejs
+USER adonisjs
 
 EXPOSE 3333
 
-CMD ["node", "bin/server.js"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget -qO- http://localhost:3333/health || exit 1
+
+CMD ["node", "build/bin/server.js"]
