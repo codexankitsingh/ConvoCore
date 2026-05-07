@@ -535,29 +535,48 @@ eventSource.onmessage = (event) => {
 
 ## 🏗 Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                        Nginx                            │
-│              (Reverse Proxy + SSL + Rate Limiting)      │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│                   AdonisJS App                          │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │
-│  │Controller │→ │ Service  │→ │    Repository        │  │
-│  │(HTTP)     │  │(Logic)   │  │    (Database)        │  │
-│  └──────────┘  └──────────┘  └──────────────────────┘  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │
-│  │Middleware │  │Validators│  │   Transmit (SSE)     │  │
-│  │(Auth/Rate)│  │(VineJS)  │  │   (Real-time)        │  │
-│  └──────────┘  └──────────┘  └──────────────────────┘  │
-└───────┬──────────────────────────────────┬──────────────┘
-        │                                  │
-┌───────▼──────────┐              ┌────────▼─────────┐
-│   PostgreSQL     │              │     Redis        │
-│   (Data Store)   │              │  (Cache/Tokens/  │
-│                  │              │   Presence/Rate)  │
-└──────────────────┘              └──────────────────┘
+```mermaid
+flowchart TD
+    %% Define Nodes
+    Client([📱 Client Apps])
+    Nginx[[🌐 Nginx Reverse Proxy]]
+    
+    subgraph AdonisJS[AdonisJS v7 Application]
+        direction TB
+        Router{HTTP Router}
+        MW(🛡️ Middleware)
+        Val(✔️ VineJS Validators)
+        Ctrl(🎮 Controllers)
+        Svc(⚙️ Services)
+        Repo(🗄️ Repositories)
+        Transmit(⚡ Transmit SSE)
+        
+        Router --> MW --> Val --> Ctrl --> Svc --> Repo
+        Svc --> Transmit
+    end
+    
+    DB[(🐘 PostgreSQL 16)]
+    Redis[(🔴 Redis 7)]
+
+    %% Define Connections
+    Client == "HTTPS / SSE" ==> Nginx
+    Nginx == "Proxy Pass" ==> Router
+    
+    Repo == "Lucid ORM" ==> DB
+    Svc == "Cache / PubSub" ==> Redis
+    MW -. "Token Blacklist / Rate Limit" .-> Redis
+    Transmit -. "Event Broadcasting" .-> Redis
+    
+    %% Styling
+    classDef proxy fill:#2b3137,stroke:#fafbfc,stroke-width:2px,color:#fff;
+    classDef app fill:#5a67d8,stroke:#4c51bf,stroke-width:2px,color:#fff;
+    classDef db fill:#2f855a,stroke:#276749,stroke-width:2px,color:#fff;
+    classDef redis fill:#c53030,stroke:#9b2c2c,stroke-width:2px,color:#fff;
+    
+    class Nginx proxy;
+    class Router,MW,Val,Ctrl,Svc,Repo,Transmit app;
+    class DB db;
+    class Redis redis;
 ```
 
 **Key Design Patterns:**
