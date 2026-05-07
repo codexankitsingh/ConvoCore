@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import RateLimitService from '#services/rate_limit_service'
 import { rateLimitConfig, type RateLimitRule } from '#config/rate_limit'
+import app from '@adonisjs/core/services/app'
 
 /*
 |--------------------------------------------------------------------------
@@ -46,6 +47,9 @@ export default class RateLimitMiddleware {
   |--------------------------------------------------------------------------
   */
   async handle(ctx: HttpContext, next: NextFn, rule: RateLimitRule): Promise<void> {
+    if (app.inTest && ctx.request.header('x-test-rate-limit') !== 'true') {
+      return next()
+    }
     const key = this.getRateLimitKey(ctx)
     const result = await this.rateLimitService.check(key, rule)
 

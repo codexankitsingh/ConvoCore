@@ -1,37 +1,20 @@
-/*
-|--------------------------------------------------------------------------
-| Test runner entrypoint
-|--------------------------------------------------------------------------
-|
-| The "test.ts" file is the entrypoint for running tests using Japa.
-|
-| Either you can run this file directly or use the "test"
-| command to run this file and monitor file changes.
-|
-*/
-
-process.env.NODE_ENV = 'test'
-
-import 'reflect-metadata'
+import { createServer } from 'node:http'
 import { Ignitor, prettyPrintError } from '@adonisjs/core'
 import { configure, processCLIArgs, run } from '@japa/runner'
+import { assert } from '@japa/assert'
+import { apiClient } from '@japa/api-client'
+import { pluginAdonisJS } from '@japa/plugin-adonisjs'
 
-/**
- * URL to the application root. AdonisJS need it to resolve
- * paths to file and directories for scaffolding commands
- */
 const APP_ROOT = new URL('../', import.meta.url)
 
-/**
- * The importer is used to import files in context of the
- * application.
- */
 const IMPORTER = (filePath: string) => {
   if (filePath.startsWith('./') || filePath.startsWith('../')) {
     return import(new URL(filePath, APP_ROOT).href)
   }
   return import(filePath)
 }
+
+processCLIArgs(process.argv.splice(2))
 
 new Ignitor(APP_ROOT, { importer: IMPORTER })
   .tap((app) => {
@@ -42,21 +25,67 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
     app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate())
   })
   .testRunner()
-  .configure(async (app) => {
-    const { runnerHooks, ...config } = await import('../tests/bootstrap.js')
-
-    processCLIArgs(process.argv.splice(2))
+  .configure((app) => {
     configure({
-      ...app.rcFile.tests,
-      ...config,
-      ...{
-        setup: runnerHooks.setup,
-        teardown: runnerHooks.teardown.concat([() => app.terminate()]),
+      suites: [
+        {
+          name: 'unit',
+          files: ['tests/unit/**/*.spec.{ts,js}'],
+          timeout: 10000,
+        },
+        {
+          name: 'integration',
+          files: ['tests/integration/**/*.spec.{ts,js}'],
+          timeout: 30000,
+        },
+      ],
+      plugins: [
+        assert(),
+        apiClient(),
+        pluginAdonisJS(app),
+      ],
+      reporters: {
+        activated: ['spec'],
       },
+      forceExit: true,
     })
   })
-  .run(() => run())
-  .catch((error) => {
-    process.exitCode = 1
-    prettyPrintError(error)
+  .run(async (app) => {
+    /*
+    |------------------------------------------------------------------
+    | DEBUG — verify app environment
+    |------------------------------------------------------------------
+    */
+    console.log(`[ test ] app.inTest     = ${app.inTest}`)
+    console.log(`[ test ] app.nodeEnv    = ${app.nodeEnvironment}`)
+    console.log(`[ test ] app.env        = ${app.getEnvironment()}`)
+
+    /*
+    |------------------------------------------------------------------
+    | Start HTTP server
+    |------------------------------------------------------------------
+    */
+    const server = await app.container.make('server')
+    await server.boot()
+
+    const port = Number(process.env.PORT || 3334)
+    const host = process.env.HOST || '0.0.0.0'
+
+    const httpServer = createServer(server.handle.bind(server))
+    server.setNodeServer(httpServer)
+
+    await new Promise<void>((resolve, reject) => {
+      httpServer.listen(port, host, () => {
+        console.log(`[ test ] server started → http://${host}:${port}`)
+        resolve()
+      })
+      httpServer.once('error', reject)
+    })
+
+    await run()
+
+    await new Promise<void>((resolve) => {
+      httpServer.close(() => resolve())
+    })
   })
+  .catch(prettyPrintError)

@@ -120,10 +120,7 @@ export default class MessageService implements IMessageService {
       })
     }
 
-    const updated = await this.messageRepository.update(messageId, {
-      content,
-      isEdited: true,
-    })
+    const updated = await this.messageRepository.update(messageId, content)
 
     this.realtimeService.broadcastEditedMessage(
       message.conversationId,
@@ -171,7 +168,7 @@ export default class MessageService implements IMessageService {
   |--------------------------------------------------------------------------
   */
   async markAsRead(conversationId: string, userId: string) {
-    return this.messageRepository.markAllReadInConversation(
+    return this.messageRepository.markAsRead(
       conversationId,
       userId
     )

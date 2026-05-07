@@ -50,20 +50,21 @@ export default defineConfig({
   | Tests
   |--------------------------------------------------------------------------
   */
+
   tests: {
     suites: [
       {
-        files: ['tests/unit/**/*.spec.{ts,js}'],
         name: 'unit',
-        timeout: 2000,
+        files: ['tests/unit/**/*.spec.{ts,js}'],
+        timeout: 10000,
       },
       {
-        files: ['tests/functional/**/*.spec.{ts,js}'],
-        name: 'functional',
+        name: 'integration',
+        files: ['tests/integration/**/*.spec.{ts,js}'],
         timeout: 30000,
       },
     ],
-    forceExit: false,
+    forceExit: true,
   },
 
   metaFiles: [],

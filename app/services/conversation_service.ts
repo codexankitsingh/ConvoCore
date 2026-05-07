@@ -23,12 +23,12 @@ export default class ConversationService {
   |--------------------------------------------------------------------------
   */
   async create(
-    creatorId: string,
     data: {
       type: 'direct' | 'group'
       name?: string
       participantIds: string[]
-    }
+    },
+    creatorId: string
   ) {
     // Validate participants exist
     for (const participantId of data.participantIds) {
@@ -75,6 +75,7 @@ export default class ConversationService {
       conversationId: conversation.id,
       conversationName: conversation.name,
       participantIds: allParticipantIds,
+      type: data.type,
     })
 
     return conversation
@@ -94,7 +95,7 @@ export default class ConversationService {
   | Show Conversation
   |--------------------------------------------------------------------------
   */
-  async show(conversationId: string) {
+  async get(conversationId: string, userId: string) {
     const conversation = await this.conversationRepository.findByIdWithParticipants(conversationId)
 
     if (!conversation) {
@@ -139,7 +140,7 @@ export default class ConversationService {
   | Add Participant
   |--------------------------------------------------------------------------
   */
-  async addParticipant(conversationId: string, actorId: string, userId: string) {
+  async addParticipant(conversationId: string, userId: string, actorId: string) {
     const user = await this.userRepository.findById(userId)
     if (!user) {
       throw new Exception('User not found', {

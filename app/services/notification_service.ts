@@ -80,7 +80,12 @@ export default class NotificationService {
     conversationId: string
     conversationName: string | null
     participantIds: string[]
+    type?: 'direct' | 'group'
   }): Promise<void> {
+    // Skip notifications for direct conversations
+    // (message notifications handle this case)
+    if (data.type === 'direct') return
+
     const recipients = data.participantIds.filter(
       (id) => id !== data.creatorId
     )
